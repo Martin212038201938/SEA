@@ -53,7 +53,7 @@ def _get(path: str, **params) -> Any:
 def parse_description(desc: str) -> dict[str, str]:
     """Feldzeilen „Name: Wert“ lesen; Markdown-Fett (**Name:** Wert) und Platzhalter „—“ werden toleriert."""
     out: dict[str, str] = {}
-    cleaned = (desc or "").replace("**", "").replace("__", "")
+    cleaned = re.sub(r"(?m)^\s*[*_]+\s*", "", (desc or "").replace("**", "").replace("__", ""))
     for m in _FIELD.finditer(cleaned):
         key = m.group(1).lower().replace("-", "")
         val = m.group(2).strip().rstrip("*").strip()
