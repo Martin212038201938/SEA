@@ -83,6 +83,9 @@ class Settings:
     trello_list_status_map: dict[str, str] = field(
         default_factory=lambda: _parse_map(os.getenv("TRELLO_LIST_STATUS_MAP", ""))
     )
+    trello_list_channel_map: dict[str, str] = field(
+        default_factory=lambda: _parse_map(os.getenv("TRELLO_LIST_CHANNEL_MAP", ""))
+    )
 
     bookings_webhook_secret: str = os.getenv("BOOKINGS_WEBHOOK_SECRET", "")
 

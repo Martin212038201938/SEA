@@ -37,7 +37,10 @@ DEFAULT_STATUS_MAP = {
     "abgelehnt": "verloren",
 }
 
-_FIELD = re.compile(r"^\s*(vorname|nachname|name|e-?mail|unternehmen|firma|telefon|kanal|auftragswert|wert|erlös|erloes|art)\s*:\s*(.+?)\s*$", re.I | re.M)
+_FIELD = re.compile(r"^\s*(vorname|nachname|name|e-?mail|unternehmen|firma|telefon|kanal|auftragswert|wert|erlös|erloes|art|empfangsdatum)\s*:\s*(.+?)\s*$", re.I | re.M)
+
+# Status „ignorieren“ = Liste enthält keine Leads (Ablagen, Verträge, Downloads); solche Karten werden übersprungen.
+IGNORE = "ignorieren"
 
 
 def _get(path: str, **params) -> Any:
@@ -85,40 +88,83 @@ def _card_created(card_id: str) -> dt.date:
     return dt.datetime.utcfromtimestamp(int(card_id[:8], 16)).date()
 
 
+def _received_date(fields: dict[str, str]) -> dt.date | None:
+    """„Empfangsdatum: 2026-10-15 09:48 UTC“ aus Kontaktformular-Karten."""
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", fields.get("empfangsdatum", ""))
+    if not m:
+        return None
+    try:
+        return dt.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:
+        return None
+
+
+def _channel_for(fields: dict[str, str], labels: list[str], list_name: str, desc: str) -> str:
+    explicit = fields.get("kanal", "").lower()
+    if explicit:
+        return "microsoft" if explicit == "bing" else explicit
+    for l in labels:
+        if l in ("google", "microsoft", "bing", "organisch", "empfehlung", "linkedin", "seminarmarkt", "outbound"):
+            return "microsoft" if l == "bing" else l
+    custom = {k.lower(): v for k, v in settings.trello_list_channel_map.items()}
+    ln = (list_name or "").strip().lower()
+    if ln in custom:
+        return custom[ln]
+    if "gclid" in (desc or "").lower() or "google ads" in (desc or "").lower():
+        return "google"
+    return "unbekannt"
+
+
+def _kind_for(fields: dict[str, str], desc: str) -> str:
+    if fields.get("art"):
+        return fields["art"].lower()
+    d = (desc or "").lower()
+    if "kontaktformular" in d:
+        return "kontaktformular"
+    if "angebotsanfrage" in d:
+        return "angebotsanfrage"
+    if "erstgespräch" in d or "bookings" in d:
+        return "erstgespraech"
+    return "unbekannt"
+
+
 def pull(session: Session) -> int:
     lists = {l["id"]: l["name"] for l in _get(f"/boards/{settings.trello_board_id}/lists", fields="name")}
     cards = _get(f"/boards/{settings.trello_board_id}/cards", fields="name,desc,idList,shortUrl,dateLastActivity,labels,closed", filter="all")
-    n = 0
+    n = skipped = 0
     for c in cards:
         if c.get("closed"):
             continue
-        fields = parse_description(c.get("desc", ""))
+        list_name = lists.get(c["idList"], "")
+        status = _status_for_list(list_name)
+        if status == IGNORE:
+            skipped += 1
+            continue
+        desc = c.get("desc", "")
+        fields = parse_description(desc)
         name = " ".join(x for x in (fields.get("vorname"), fields.get("nachname")) if x) or fields.get("name") or c.get("name", "")
         labels = [l.get("name", "").lower() for l in c.get("labels", [])]
-        channel = fields.get("kanal", "").lower() or next((l for l in labels if l in ("google", "microsoft", "bing", "organisch", "empfehlung", "linkedin", "seminarmarkt")), "unbekannt")
-        if channel == "bing":
-            channel = "microsoft"
         upsert(
             session,
             Lead,
             {"source": "trello", "external_id": c["id"]},
             {
-                "created_on": _card_created(c["id"]),
+                "created_on": _received_date(fields) or _card_created(c["id"]),
                 "name": name,
                 "company": fields.get("unternehmen") or fields.get("firma") or "",
                 "email": fields.get("email", ""),
                 "phone": fields.get("telefon", ""),
-                "status": _status_for_list(lists.get(c["idList"], "")),
+                "status": status,
                 "value": _money(fields.get("auftragswert") or fields.get("wert")),
                 "revenue": _money(fields.get("erlös") or fields.get("erloes")),
-                "channel": channel,
-                "kind": fields.get("art", "kontaktformular").lower(),
+                "channel": _channel_for(fields, labels, list_name, desc),
+                "kind": _kind_for(fields, desc),
                 "url": c.get("shortUrl", ""),
-                "notes": c.get("name", ""),
+                "notes": f"{c.get('name', '')} [Liste: {list_name}]",
             },
         )
         n += 1
-    log.info("trello: %s Karten verarbeitet", n)
+    log.info("trello: %s Karten verarbeitet, %s ignoriert", n, skipped)
     return n
 
 
