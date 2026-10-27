@@ -79,17 +79,29 @@ def _anthropic_text(resp) -> str:
     return "".join(getattr(b, "text", "") for b in resp.content if getattr(b, "type", "") == "text")
 
 
+def _anthropic_create(client, **kwargs):
+    """Nachricht erzeugen. Neuere Modelle (Sonnet/Haiku 5.5) denken standardmäßig vor der Antwort und können
+    damit das gesamte Token-Budget verbrauchen, bevor ein Werkzeugaufruf kommt; `between_tools` schaltet das ab.
+    Modelle, die den Parameter nicht kennen, bekommen den Aufruf ohne ihn."""
+    try:
+        return client.messages.create(thinking={"type": "between_tools"}, **kwargs)
+    except Exception as exc:
+        if "thinking" not in str(exc):
+            raise
+        return client.messages.create(**kwargs)
+
+
 def _anthropic_run_with_tools(system, messages, tools, executor, model, max_rounds, on_tool):
     client = _anthropic()
     convo: list[dict[str, Any]] = [{"role": m["role"], "content": m["content"]} for m in messages]
     calls: list[dict[str, Any]] = []
     a_tools = _to_anthropic_tools(tools)
     for _ in range(max_rounds):
-        resp = client.messages.create(model=model, max_tokens=4000, system=system, messages=convo, tools=a_tools or None)
+        resp = _anthropic_create(client, model=model, max_tokens=8000, system=system, messages=convo, tools=a_tools or None)
         tool_uses = [b for b in resp.content if getattr(b, "type", "") == "tool_use"]
         if not tool_uses or resp.stop_reason != "tool_use":
             return _anthropic_text(resp), calls
-        convo.append({"role": "assistant", "content": [b.model_dump() if hasattr(b, "model_dump") else b for b in resp.content]})
+        convo.append({"role": "assistant", "content": [b.model_dump(exclude_none=True) if hasattr(b, "model_dump") else b for b in resp.content]})
         results = []
         for tu in tool_uses:
             result = _run_tool(executor, tu.name, dict(tu.input or {}), calls, on_tool)
@@ -105,13 +117,13 @@ def _anthropic_structured(system, user_content, schema, name, model) -> dict[str
         f"\n\nAntworte ausschließlich durch einen Aufruf des Werkzeugs `{name}` mit vollständig gefüllten Feldern. "
         "Kein Text außerhalb des Werkzeugaufrufs."
     )
-    kwargs: dict[str, Any] = dict(model=model, max_tokens=8000, system=system + instruction, messages=[{"role": "user", "content": user_content}], tools=[tool])
+    kwargs: dict[str, Any] = dict(model=model, max_tokens=16000, system=system + instruction, messages=[{"role": "user", "content": user_content}], tools=[tool])
     try:
-        resp = client.messages.create(tool_choice={"type": "tool", "name": name}, **kwargs)
-    except Exception as exc:  # manche Modelle erlauben kein erzwungenes Werkzeug
+        resp = _anthropic_create(client, tool_choice={"type": "tool", "name": name}, **kwargs)
+    except Exception as exc:  # Sonnet/Haiku 5.5 erlauben kein erzwungenes Werkzeug, rufen es mit Anweisung aber zuverlässig auf
         if "tool_choice" not in str(exc):
             raise
-        resp = client.messages.create(tool_choice={"type": "auto"}, **kwargs)
+        resp = _anthropic_create(client, tool_choice={"type": "auto"}, **kwargs)
     for b in resp.content:
         if getattr(b, "type", "") == "tool_use" and b.name == name:
             return dict(b.input)
@@ -120,12 +132,12 @@ def _anthropic_structured(system, user_content, schema, name, model) -> dict[str
     start, end = text.find("{"), text.rfind("}")
     if start >= 0 and end > start:
         return json.loads(text[start : end + 1])
-    raise RuntimeError("Modell hat kein strukturiertes Ergebnis geliefert")
+    raise RuntimeError(f"Modell hat kein strukturiertes Ergebnis geliefert (stop_reason={resp.stop_reason}, Blöcke={[getattr(b, 'type', '?') for b in resp.content]})")
 
 
 def _anthropic_plain(system, user_content, model) -> str:
     client = _anthropic()
-    resp = client.messages.create(model=model, max_tokens=800, system=system, messages=[{"role": "user", "content": user_content}])
+    resp = _anthropic_create(client, model=model, max_tokens=2000, system=system, messages=[{"role": "user", "content": user_content}])
     return _anthropic_text(resp)
 
 
