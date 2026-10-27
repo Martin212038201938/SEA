@@ -19,9 +19,11 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.ALWAYSDATA_SSH_KEY != '' }}
     steps:
       - name: Deploy per SSH
-        if: ${{ secrets.ALWAYSDATA_SSH_KEY != '' }}
+        if: env.HAS_KEY == 'true'
         uses: appleboy/ssh-action@v1.2.4
         with:
           host: ssh-y-b.alwaysdata.net
@@ -30,7 +32,7 @@ jobs:
           script: |
             cd ~/sea-cockpit && bash scripts/alwaysdata_deploy.sh
       - name: Hinweis ohne Secret
-        if: ${{ secrets.ALWAYSDATA_SSH_KEY == '' }}
+        if: env.HAS_KEY != 'true'
         run: |
           echo "Secret ALWAYSDATA_SSH_KEY fehlt, Deployment uebersprungen."
           echo "Manuell: ssh y-b@ssh-y-b.alwaysdata.net 'cd ~/sea-cockpit && bash scripts/alwaysdata_deploy.sh'"
