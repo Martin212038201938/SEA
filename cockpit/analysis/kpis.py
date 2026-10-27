@@ -462,6 +462,15 @@ def _norm_query(q: str) -> str:
     return re.sub(r"\s+", " ", q).strip()
 
 
+INTENT_WORDS = ("schulung", "training", "kurs", "workshop", "seminar", "weiterbildung", "inhouse", "firmen", "unternehmen", "mitarbeiter", "agentur", "beratung", "coaching", "einführung", "einfuehrung", "rollout", "anbieter")
+
+
+def is_buying_intent(q: str) -> bool:
+    """Kaufnahe Suchanfrage (Schulungs-/Dienstleistungsbedarf) statt reiner Information (Kosten, Lizenz, Anleitung)."""
+    ql = (q or "").lower()
+    return any(w in ql for w in INTENT_WORDS)
+
+
 def organic_queries(session: Session, start: dt.date, end: dt.date, limit: int = 200, query: str | None = None, min_impressions: int = 0) -> list[dict[str, Any]]:
     """Organische Suchanfragen aus der Search Console, über Seiten und Tage aggregiert."""
     stmt = (
@@ -484,7 +493,7 @@ def organic_queries(session: Session, start: dt.date, end: dt.date, limit: int =
     out = []
     for r in session.execute(stmt).all():
         imp = int(r.impressions or 0)
-        out.append({"query": r.query, "clicks": int(r.clicks or 0), "impressions": imp, "ctr": safe_div(int(r.clicks or 0), imp), "position": round(float(r.position or 0), 1), "pages": int(r.pages or 0), "top_page": r.top_page})
+        out.append({"query": r.query, "clicks": int(r.clicks or 0), "impressions": imp, "ctr": safe_div(int(r.clicks or 0), imp), "position": round(float(r.position or 0), 1), "pages": int(r.pages or 0), "top_page": r.top_page, "buying_intent": is_buying_intent(r.query)})
     return out
 
 
@@ -512,12 +521,12 @@ def paid_organic_overlap(session: Session, start: dt.date, end: dt.date, platfor
         if p and o["position"] <= 3 and p["clicks"] > 0:
             kann.append({"query": o["query"], "organic_position": o["position"], "organic_clicks": o["clicks"], "organic_impressions": o["impressions"], "paid_cost": p["cost"], "paid_clicks": p["clicks"], "paid_conversions": p["conversions"]})
         elif not p and 4 <= o["position"] <= 20 and o["impressions"] >= min_impressions:
-            nah.append({"query": o["query"], "organic_position": o["position"], "organic_clicks": o["clicks"], "organic_impressions": o["impressions"], "top_page": o["top_page"]})
+            nah.append({"query": o["query"], "organic_position": o["position"], "organic_clicks": o["clicks"], "organic_impressions": o["impressions"], "top_page": o["top_page"], "buying_intent": o["buying_intent"]})
     for key, p in paid.items():
         if key not in organic and p["conversions"] > 0:
             nur_paid.append({"search_term": p["search_term"], "paid_cost": p["cost"], "paid_clicks": p["clicks"], "paid_conversions": p["conversions"]})
     kann.sort(key=lambda x: -x["paid_cost"])
-    nah.sort(key=lambda x: -x["organic_impressions"])
+    nah.sort(key=lambda x: (not x["buying_intent"], -x["organic_impressions"]))  # kaufnahe zuerst
     nur_paid.sort(key=lambda x: -x["paid_conversions"])
     return {
         "period": {"start": start.isoformat(), "end": end.isoformat()},

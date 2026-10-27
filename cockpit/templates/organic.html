@@ -22,9 +22,9 @@
   </div>
   <div class="card">
     <h2>Organisch nah dran, kein Paid</h2>
-    <p class="small muted">Position 4 bis 20 mit Nachfrage, aber ohne bezahlte Abdeckung. Belegter Bedarf: Kandidaten für einen Paid-Test oder einen SEO-Schub auf der genannten Seite.</p>
+    <p class="small muted">Position 4 bis 20 mit Nachfrage, aber ohne bezahlte Abdeckung. Kaufnahe Anfragen (Schulung, Training, Workshop …) stehen oben; reine Informationsanfragen (Kosten, Lizenz) bringen Reichweite, selten Leads.</p>
     <table><tr><th>Anfrage</th><th class="num">Pos.</th><th class="num">Impr.</th><th class="num">Klicks</th><th>Seite</th></tr>
-    {% for r in overlap.organisch_nah %}<tr><td>{{ r.query }}</td><td class="num">{{ r.organic_position }}</td><td class="num">{{ r.organic_impressions }}</td><td class="num">{{ r.organic_clicks }}</td><td class="small">{{ (r.top_page or '') | replace('https://copilotenschule.de', '') }}</td></tr>{% else %}<tr><td colspan="5" class="muted">Nichts im Zeitraum.</td></tr>{% endfor %}</table>
+    {% for r in overlap.organisch_nah %}<tr><td>{{ r.query }}{% if r.buying_intent %} <span class="badge p1" title="Schulungs-/Dienstleistungsbedarf">kaufnah</span>{% endif %}</td><td class="num">{{ r.organic_position }}</td><td class="num">{{ r.organic_impressions }}</td><td class="num">{{ r.organic_clicks }}</td><td class="small">{{ (r.top_page or '') | replace('https://copilotenschule.de', '') }}</td></tr>{% else %}<tr><td colspan="5" class="muted">Nichts im Zeitraum.</td></tr>{% endfor %}</table>
   </div>
 </div>
 <div class="card" style="margin-top:1rem">
@@ -37,6 +37,6 @@
   <h2>Organische Suchanfragen</h2>
   <form method="get" class="form-row"><input type="hidden" name="days" value="{{ days }}"><input type="hidden" name="platform" value="{{ platform }}"><div><label>Enthält</label><input name="q" value="{{ q }}"></div><div><button class="btn" type="submit">Filtern</button></div></form>
   <table><tr><th>Anfrage</th><th class="num">Klicks</th><th class="num">Impr.</th><th class="num">CTR</th><th class="num">Pos.</th><th>Seite</th></tr>
-  {% for r in queries %}<tr><td>{{ r.query }}</td><td class="num">{{ r.clicks }}</td><td class="num">{{ r.impressions }}</td><td class="num">{{ r.ctr | pct }}</td><td class="num">{{ r.position }}</td><td class="small">{{ (r.top_page or '') | replace('https://copilotenschule.de', '') }}</td></tr>{% else %}<tr><td colspan="6" class="muted">Noch keine Daten. Nach dem ersten Abzug (Admin → Nachtlauf oder Historie) erscheinen sie hier.</td></tr>{% endfor %}</table>
+  {% for r in queries %}<tr><td>{{ r.query }}{% if r.buying_intent %} <span class="badge p1">kaufnah</span>{% endif %}</td><td class="num">{{ r.clicks }}</td><td class="num">{{ r.impressions }}</td><td class="num">{{ r.ctr | pct }}</td><td class="num">{{ r.position }}</td><td class="small">{{ (r.top_page or '') | replace('https://copilotenschule.de', '') }}</td></tr>{% else %}<tr><td colspan="6" class="muted">Noch keine Daten. Nach dem ersten Abzug (Admin → Nachtlauf oder Historie) erscheinen sie hier.</td></tr>{% endfor %}</table>
 </div>
 {% endblock %}
