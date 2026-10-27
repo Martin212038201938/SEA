@@ -15,6 +15,7 @@ from ..models import (
     ChangeEvent,
     KeywordDaily,
     Lead,
+    OrganicQueryDaily,
     SearchTermDaily,
 )
 from ..util import pct_change, safe_div
@@ -443,4 +444,87 @@ def weekly_pack(session: Session, end: dt.date, platform: str = "all") -> dict[s
         "auction_insights": auction_insights(session, platform),
         "leads_28d": leads_summary(session, end - dt.timedelta(days=27), end),
     }
+    try:
+        ov = paid_organic_overlap(session, end - dt.timedelta(days=27), end, platform)
+        pack["organic_28d"] = {"summary": organic_summary(session, end - dt.timedelta(days=27), end), "top_queries": organic_queries(session, end - dt.timedelta(days=27), end, 25), "kannibalisierung": ov["kannibalisierung"][:15], "organisch_nah": ov["organisch_nah"][:20], "nur_paid": ov["nur_paid"][:15]}
+    except Exception:  # ohne Search-Console-Daten bleibt der Report wie bisher
+        pass
     return pack
+
+
+# ---------------------------------------------------------------- Organisch (Search Console)
+
+def _norm_query(q: str) -> str:
+    import re
+
+    q = (q or "").lower().strip()
+    q = re.sub(r"[^a-z0-9äöüß ]+", " ", q)
+    return re.sub(r"\s+", " ", q).strip()
+
+
+def organic_queries(session: Session, start: dt.date, end: dt.date, limit: int = 200, query: str | None = None, min_impressions: int = 0) -> list[dict[str, Any]]:
+    """Organische Suchanfragen aus der Search Console, über Seiten und Tage aggregiert."""
+    stmt = (
+        select(
+            OrganicQueryDaily.query,
+            func.sum(OrganicQueryDaily.clicks).label("clicks"),
+            func.sum(OrganicQueryDaily.impressions).label("impressions"),
+            (func.sum(OrganicQueryDaily.position * OrganicQueryDaily.impressions) / func.nullif(func.sum(OrganicQueryDaily.impressions), 0)).label("position"),
+            func.count(func.distinct(OrganicQueryDaily.page)).label("pages"),
+            func.max(OrganicQueryDaily.page).label("top_page"),
+        )
+        .where(OrganicQueryDaily.date >= start, OrganicQueryDaily.date <= end)
+        .group_by(OrganicQueryDaily.query)
+    )
+    if query:
+        stmt = stmt.where(OrganicQueryDaily.query.ilike(f"%{query}%"))
+    if min_impressions:
+        stmt = stmt.having(func.sum(OrganicQueryDaily.impressions) >= min_impressions)
+    stmt = stmt.order_by(func.sum(OrganicQueryDaily.impressions).desc()).limit(limit)
+    out = []
+    for r in session.execute(stmt).all():
+        imp = int(r.impressions or 0)
+        out.append({"query": r.query, "clicks": int(r.clicks or 0), "impressions": imp, "ctr": safe_div(int(r.clicks or 0), imp), "position": round(float(r.position or 0), 1), "pages": int(r.pages or 0), "top_page": r.top_page})
+    return out
+
+
+def organic_summary(session: Session, start: dt.date, end: dt.date) -> dict[str, Any]:
+    r = session.execute(
+        select(func.sum(OrganicQueryDaily.clicks), func.sum(OrganicQueryDaily.impressions), func.count(func.distinct(OrganicQueryDaily.query)), func.min(OrganicQueryDaily.date), func.max(OrganicQueryDaily.date)).where(OrganicQueryDaily.date >= start, OrganicQueryDaily.date <= end)
+    ).one()
+    clicks, imps = int(r[0] or 0), int(r[1] or 0)
+    return {"clicks": clicks, "impressions": imps, "ctr": safe_div(clicks, imps), "queries": int(r[2] or 0), "first": r[3].isoformat() if r[3] else None, "last": r[4].isoformat() if r[4] else None}
+
+
+def paid_organic_overlap(session: Session, start: dt.date, end: dt.date, platform: str = "all", min_impressions: int = 20) -> dict[str, Any]:
+    """Bezahlte Suchbegriffe gegen organische Rankings stellen.
+
+    kannibalisierung: organisch Top 3 und trotzdem bezahlte Klicks – Kandidaten, Gebote zu senken oder auszuschließen.
+    organisch_nah:    organisch Position 4–20 mit Nachfrage, aber ohne bezahlte Abdeckung – Kandidaten für Paid-Test
+                      (belegter Bedarf) oder SEO-Push.
+    nur_paid:         bezahlt mit Conversions, organisch unsichtbar – Content-Lücke.
+    """
+    paid = {_norm_query(t["search_term"]): t for t in search_terms(session, start, end, platform, limit=2000)}
+    organic = {_norm_query(o["query"]): o for o in organic_queries(session, start, end, limit=5000, min_impressions=1)}
+    kann, nah, nur_paid = [], [], []
+    for key, o in organic.items():
+        p = paid.get(key)
+        if p and o["position"] <= 3 and p["clicks"] > 0:
+            kann.append({"query": o["query"], "organic_position": o["position"], "organic_clicks": o["clicks"], "organic_impressions": o["impressions"], "paid_cost": p["cost"], "paid_clicks": p["clicks"], "paid_conversions": p["conversions"]})
+        elif not p and 4 <= o["position"] <= 20 and o["impressions"] >= min_impressions:
+            nah.append({"query": o["query"], "organic_position": o["position"], "organic_clicks": o["clicks"], "organic_impressions": o["impressions"], "top_page": o["top_page"]})
+    for key, p in paid.items():
+        if key not in organic and p["conversions"] > 0:
+            nur_paid.append({"search_term": p["search_term"], "paid_cost": p["cost"], "paid_clicks": p["clicks"], "paid_conversions": p["conversions"]})
+    kann.sort(key=lambda x: -x["paid_cost"])
+    nah.sort(key=lambda x: -x["organic_impressions"])
+    nur_paid.sort(key=lambda x: -x["paid_conversions"])
+    return {
+        "period": {"start": start.isoformat(), "end": end.isoformat()},
+        "paid_terms": len(paid),
+        "organic_queries": len(organic),
+        "kannibalisierung": kann[:40],
+        "organisch_nah": nah[:60],
+        "nur_paid": nur_paid[:40],
+        "kannibalisierung_cost": round(sum(x["paid_cost"] for x in kann), 2),
+    }

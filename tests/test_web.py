@@ -31,7 +31,7 @@ def test_login_required(client):
 
 def test_pages_render(client):
     _login(client)
-    for path in ["/", "/hilfe", "/vorschlaege", "/experimente", "/suchbegriffe", "/keywords", "/anzeigen", "/leads", "/alerts", "/reports", "/chat", "/admin", "/api/timeseries?days=30"]:
+    for path in ["/", "/hilfe", "/organisch", "/vorschlaege", "/experimente", "/suchbegriffe", "/keywords", "/anzeigen", "/leads", "/alerts", "/reports", "/chat", "/admin", "/api/timeseries?days=30"]:
         r = client.get(path)
         assert r.status_code == 200, path
 
@@ -79,7 +79,7 @@ def test_page_context_all_routes(client):
     from cockpit.llm import page_context
 
     with session_scope() as s:
-        for path, query in [("/", {"days": "28"}), ("/vorschlaege", {"status": "alle"}), ("/vorschlaege/1", {}), ("/experimente", {}), ("/experimente/1", {}), ("/suchbegriffe", {"waste": "1", "q": "copilot"}), ("/keywords", {"sort": "cost"}), ("/anzeigen", {}), ("/leads", {"days": "90"}), ("/alerts", {}), ("/reports", {}), ("/reports/1", {}), ("/admin", {}), ("/gibtsnicht", {})]:
+        for path, query in [("/", {"days": "28"}), ("/vorschlaege", {"status": "alle"}), ("/vorschlaege/1", {}), ("/experimente", {}), ("/experimente/1", {}), ("/suchbegriffe", {"waste": "1", "q": "copilot"}), ("/organisch", {"days": "28"}), ("/keywords", {"sort": "cost"}), ("/anzeigen", {}), ("/leads", {"days": "90"}), ("/alerts", {}), ("/reports", {}), ("/reports/1", {}), ("/admin", {}), ("/gibtsnicht", {})]:
             ctx = page_context.build(s, path, query)
             assert ctx["title"] and ctx["data_json"].startswith("{"), path
             prompt = page_context.as_prompt(ctx)

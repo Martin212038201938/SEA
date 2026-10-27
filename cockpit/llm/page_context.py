@@ -103,6 +103,9 @@ def build(session: Session, path: str, query: dict[str, str] | None = None) -> d
     elif path == "/anzeigen":
         title, desc = "Anzeigen", f"Anzeigen (RSA) mit Leistung {start}–{end}, Auktionsdaten und Änderungsverlauf."
         data = {"period": period, "ads": kpis.ads(session, start, end, platform), "auction_insights": kpis.auction_insights(session, platform), "change_events": kpis.change_events(session, start, end, platform, 60)}
+    elif path == "/organisch":
+        title, desc = "Organisch und Paid", f"Search-Console-Daten {start}–{end} gegen bezahlte Suchbegriffe: Kannibalisierung, organisch nah (kein Paid), nur bezahlt mit Conversions, organische Top-Anfragen."
+        data = {"period": period, "summary": kpis.organic_summary(session, start, end), "overlap": kpis.paid_organic_overlap(session, start, end, platform), "top_queries": kpis.organic_queries(session, start, end, 80, query.get("q") or None)}
     elif path == "/leads":
         rows = session.execute(select(Lead).where(Lead.created_on >= start, Lead.created_on <= end).order_by(Lead.created_on.desc()).limit(120)).scalars().all()
         summary = kpis.leads_summary(session, start, end)

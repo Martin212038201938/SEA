@@ -68,6 +68,9 @@ class Settings:
     google_developer_token: str = os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN", "unused") or "unused"
     google_service_account_file: str = os.getenv("GOOGLE_ADS_SERVICE_ACCOUNT_FILE", "")
 
+    gsc_enabled: bool = _bool("GSC_ENABLED", False)
+    gsc_site: str = os.getenv("GSC_SITE", "sc-domain:copilotenschule.de")
+
     ms_enabled: bool = _bool("MS_ADS_ENABLED", False)
     ms_developer_token: str = os.getenv("MS_ADS_DEVELOPER_TOKEN", "")
     ms_client_id: str = os.getenv("MS_ADS_CLIENT_ID", "")
@@ -126,6 +129,10 @@ class Settings:
         if self.google_service_account_file:
             return Path(self.google_service_account_file).is_file()
         return all([self.google_client_id, self.google_client_secret, self.google_refresh_token])
+
+    @property
+    def gsc_ready(self) -> bool:
+        return self.gsc_enabled and bool(self.gsc_site) and bool(self.google_service_account_file) and Path(self.google_service_account_file).is_file()
 
     @property
     def ms_ready(self) -> bool:

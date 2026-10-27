@@ -95,6 +95,26 @@ def get_timeseries(session: Session, user: str, **args):
     return kpis.timeseries(session, start, end, _platform(args), args.get("granularity") or "day")
 
 
+@tool(
+    "get_organic_queries",
+    "Organische Suchanfragen aus der Google Search Console (Klicks, Impressionen, Position) für copilotenschule.de; Suchfilter optional.",
+    {"type": "object", "properties": {**PERIOD_PROPS, "query": {"type": "string", "description": "Teilstring-Filter"}, "limit": {"type": "integer"}}, "additionalProperties": False},
+)
+def get_organic_queries(session: Session, user: str, **args):
+    start, end = _period(args)
+    return {"summary": kpis.organic_summary(session, start, end), "queries": kpis.organic_queries(session, start, end, int(args.get("limit") or 100), args.get("query") or None)}
+
+
+@tool(
+    "get_paid_organic_overlap",
+    "Abgleich bezahlte Suchbegriffe gegen organische Rankings: Kannibalisierung (organisch Top 3 + bezahlte Klicks), organisch nah (Position 4–20 mit Nachfrage, kein Paid) und nur bezahlt mit Conversions (Content-Lücke).",
+    {"type": "object", "properties": PERIOD_PROPS, "additionalProperties": False},
+)
+def get_paid_organic_overlap(session: Session, user: str, **args):
+    start, end = _period(args)
+    return kpis.paid_organic_overlap(session, start, end, _platform(args))
+
+
 @tool("get_campaigns", "Kampagnen mit Status, Gebotsstrategie, Budget, Enddatum und Kennzahlen im Zeitraum.", {"type": "object", "properties": PERIOD_PROPS, "additionalProperties": False})
 def get_campaigns(session: Session, user: str, **args):
     start, end = _period(args)

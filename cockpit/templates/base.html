@@ -14,7 +14,7 @@
 <header class="topbar">
   <a class="brand" href="/"><span class="stripes"></span> SEA-Cockpit</a>
   <nav>
-    {% for href, label in [("/", "Übersicht"), ("/vorschlaege", "Vorschläge"), ("/experimente", "Experimente"), ("/suchbegriffe", "Suchbegriffe"), ("/keywords", "Keywords"), ("/anzeigen", "Anzeigen"), ("/leads", "Leads"), ("/alerts", "Alerts"), ("/reports", "Reports"), ("/hilfe", "Hilfe"), ("/admin", "Admin")] %}
+    {% for href, label in [("/", "Übersicht"), ("/vorschlaege", "Vorschläge"), ("/experimente", "Experimente"), ("/suchbegriffe", "Suchbegriffe"), ("/keywords", "Keywords"), ("/anzeigen", "Anzeigen"), ("/organisch", "Organisch"), ("/leads", "Leads"), ("/alerts", "Alerts"), ("/reports", "Reports"), ("/hilfe", "Hilfe"), ("/admin", "Admin")] %}
       <a href="{{ href }}" class="{{ 'active' if (path == href or (href != '/' and path.startswith(href))) else '' }}">{{ label }}</a>
     {% endfor %}
   </nav>

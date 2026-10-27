@@ -80,6 +80,12 @@ def cmd_backfill(args):
             from .connectors import trello
 
             print(f"Trello: {trello.pull(s)} Karten")
+        if settings.gsc_ready:
+            from .connectors import search_console
+
+            gsc_start = end - dt.timedelta(days=min(args.days, 480) - 1)  # Search Console hält 16 Monate
+            print(f"Search Console {gsc_start} bis {end}")
+            search_console.pull(s, gsc_start, end, print)
 
 
 def cmd_weekly(args):
@@ -114,11 +120,12 @@ def cmd_test_connections(_args):
         except Exception as exc:
             print(f"{name}: FEHLER {exc}")
 
-    from .connectors import google_ads, microsoft_ads, trello
+    from .connectors import google_ads, microsoft_ads, search_console, trello
 
     check("Google Ads", settings.google_ready, google_ads.test_connection)
     check("Microsoft Ads", settings.ms_ready, microsoft_ads.test_connection)
     check("Trello", settings.trello_ready, trello.test_connection)
+    check("Search Console", settings.gsc_ready, search_console.test_connection)
 
     def openai_check():
         from .llm import client

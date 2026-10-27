@@ -56,6 +56,7 @@ Leads, offenen Vorschlägen und Experimenten. Liefere zwei Dinge:
    ## Leads und Wirtschaftlichkeit – Ads-Conversions gegen echte Leads (Trello/Bookings) stellen; wenn keine Lead-Daten vorliegen, das sagen
    ## Experimente – Stand laufender Experimente, Störfaktoren nennen
    ## Umgesetzte Vorschläge – ob eine Wirkung sichtbar ist oder es dafür zu früh ist
+   ## Organisch und Paid – nur wenn organic_28d im Paket steht: Kannibalisierung (bezahlt trotz organisch Top 3), belegter Bedarf ohne Paid, Content-Lücken; sonst Abschnitt weglassen
    ## Nächste Woche (bzw. nächster Monat)
    Keine Floskeln, keine Wiederholung der Vorschlagstexte (die stehen separat).
 

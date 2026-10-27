@@ -111,6 +111,21 @@ class SearchTermDaily(Base, MetricsMixin):
     )
 
 
+class OrganicQueryDaily(Base):
+    """Google Search Console: organische Suchanfragen je Tag (Dimension query, optional page)."""
+
+    __tablename__ = "organic_query_daily"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[dt.date] = mapped_column(Date, index=True)
+    query: Mapped[str] = mapped_column(String(500), index=True)
+    page: Mapped[str] = mapped_column(String(500), default="")
+    clicks: Mapped[int] = mapped_column(Integer, default=0)
+    impressions: Mapped[int] = mapped_column(Integer, default=0)
+    ctr: Mapped[float] = mapped_column(Float, default=0.0)
+    position: Mapped[float] = mapped_column(Float, default=0.0)
+    __table_args__ = (UniqueConstraint("date", "query", "page"),)
+
+
 class AdDaily(Base, MetricsMixin):
     __tablename__ = "ad_daily"
     id: Mapped[int] = mapped_column(primary_key=True)

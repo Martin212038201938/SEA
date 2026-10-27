@@ -250,6 +250,16 @@ def ads_page(request: Request, user: str = Depends(current_user), session: Sessi
     return render(request, "ads.html", user, ads=rows, auction=auction, changes=changes, days=days, platform=platform, start=start, end=end)
 
 
+@app.get("/organisch", response_class=HTMLResponse)
+def organic_page(request: Request, user: str = Depends(current_user), session: Session = Depends(get_session)):
+    start, end, days, platform = _period_from(request)
+    q = request.query_params.get("q") or ""
+    summary = kpis.organic_summary(session, start, end)
+    queries = kpis.organic_queries(session, start, end, 200, q or None)
+    overlap = kpis.paid_organic_overlap(session, start, end, platform)
+    return render(request, "organic.html", user, summary=summary, queries=queries, overlap=overlap, days=days, platform=platform, start=start, end=end, q=q, gsc_ready=settings.gsc_ready)
+
+
 # ------------------------------------------------------------------ Leads
 
 @app.get("/leads", response_class=HTMLResponse)
@@ -448,6 +458,7 @@ def admin_page(request: Request, user: str = Depends(current_user), session: Ses
         "Google Ads": settings.google_ready,
         "Microsoft Ads": settings.ms_ready,
         "Trello": settings.trello_ready,
+        "Search Console": settings.gsc_ready,
         f"Sprachmodell ({settings.llm_provider})": settings.openai_ready,
         "Teams-Webhook": bool(settings.teams_webhook_url),
         "SMTP": bool(settings.smtp_host and settings.alert_email_to),

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_macros.html" import period_nav %}
+{% block title %}Organisch{% endblock %}
+{% block content %}
+<h1>Organisch und Paid</h1>
+<p class="sub">Organische Suchanfragen aus der Google Search Console gegen die bezahlten Suchbegriffe gestellt. Die Search Console liefert mit zwei bis drei Tagen Verzug.</p>
+{{ period_nav(days, platform, "/organisch") }}
+{% if not gsc_ready %}<p class="err">Search Console ist nicht konfiguriert (GSC_ENABLED, Dienstkonto als Nutzer der Property).</p>{% endif %}
+<div class="grid tiles" style="margin-bottom:1rem">
+  <div class="tile"><div class="label">Organische Klicks</div><div class="value">{{ summary.clicks }}</div></div>
+  <div class="tile"><div class="label">Impressionen</div><div class="value">{{ summary.impressions }}</div></div>
+  <div class="tile"><div class="label">CTR</div><div class="value">{{ summary.ctr | pct }}</div></div>
+  <div class="tile"><div class="label">Suchanfragen</div><div class="value">{{ summary.queries }}</div></div>
+  <div class="tile"><div class="label">Kannibalisierung</div><div class="value">{{ overlap.kannibalisierung_cost | eur }}</div><div class="delta flat">bezahlt trotz organisch Top 3</div></div>
+</div>
+<div class="grid two">
+  <div class="card">
+    <h2>Kannibalisierung</h2>
+    <p class="small muted">Organisch auf Platz 1 bis 3 und trotzdem bezahlte Klicks. Kandidaten für niedrigere Gebote oder Ausschluss, sofern die Anzeige nicht bewusst die Seite doppelt belegt.</p>
+    <table><tr><th>Anfrage</th><th class="num">Org. Pos.</th><th class="num">Org. Klicks</th><th class="num">Paid Kosten</th><th class="num">Paid Klicks</th><th class="num">Paid Conv.</th></tr>
+    {% for r in overlap.kannibalisierung %}<tr><td>{{ r.query }}</td><td class="num">{{ r.organic_position }}</td><td class="num">{{ r.organic_clicks }}</td><td class="num">{{ r.paid_cost | eur }}</td><td class="num">{{ r.paid_clicks }}</td><td class="num">{{ r.paid_conversions | num(1) }}</td></tr>{% else %}<tr><td colspan="6" class="muted">Keine Überschneidung im Zeitraum.</td></tr>{% endfor %}</table>
+  </div>
+  <div class="card">
+    <h2>Organisch nah dran, kein Paid</h2>
+    <p class="small muted">Position 4 bis 20 mit Nachfrage, aber ohne bezahlte Abdeckung. Belegter Bedarf: Kandidaten für einen Paid-Test oder einen SEO-Schub auf der genannten Seite.</p>
+    <table><tr><th>Anfrage</th><th class="num">Pos.</th><th class="num">Impr.</th><th class="num">Klicks</th><th>Seite</th></tr>
+    {% for r in overlap.organisch_nah %}<tr><td>{{ r.query }}</td><td class="num">{{ r.organic_position }}</td><td class="num">{{ r.organic_impressions }}</td><td class="num">{{ r.organic_clicks }}</td><td class="small">{{ (r.top_page or '') | replace('https://copilotenschule.de', '') }}</td></tr>{% else %}<tr><td colspan="5" class="muted">Nichts im Zeitraum.</td></tr>{% endfor %}</table>
+  </div>
+</div>
+<div class="card" style="margin-top:1rem">
+  <h2>Nur bezahlt, mit Conversions</h2>
+  <p class="small muted">Suchbegriffe, die Anfragen bringen, für die die Seite organisch nicht sichtbar ist. Content-Lücke: Hier lohnt eine Seite, die den Begriff trägt.</p>
+  <table><tr><th>Suchbegriff</th><th class="num">Kosten</th><th class="num">Klicks</th><th class="num">Conv.</th></tr>
+  {% for r in overlap.nur_paid %}<tr><td>{{ r.search_term }}</td><td class="num">{{ r.paid_cost | eur }}</td><td class="num">{{ r.paid_clicks }}</td><td class="num">{{ r.paid_conversions | num(1) }}</td></tr>{% else %}<tr><td colspan="4" class="muted">Nichts im Zeitraum.</td></tr>{% endfor %}</table>
+</div>
+<div class="card" style="margin-top:1rem">
+  <h2>Organische Suchanfragen</h2>
+  <form method="get" class="form-row"><input type="hidden" name="days" value="{{ days }}"><input type="hidden" name="platform" value="{{ platform }}"><div><label>Enthält</label><input name="q" value="{{ q }}"></div><div><button class="btn" type="submit">Filtern</button></div></form>
+  <table><tr><th>Anfrage</th><th class="num">Klicks</th><th class="num">Impr.</th><th class="num">CTR</th><th class="num">Pos.</th><th>Seite</th></tr>
+  {% for r in queries %}<tr><td>{{ r.query }}</td><td class="num">{{ r.clicks }}</td><td class="num">{{ r.impressions }}</td><td class="num">{{ r.ctr | pct }}</td><td class="num">{{ r.position }}</td><td class="small">{{ (r.top_page or '') | replace('https://copilotenschule.de', '') }}</td></tr>{% else %}<tr><td colspan="6" class="muted">Noch keine Daten. Nach dem ersten Abzug (Admin → Nachtlauf oder Historie) erscheinen sie hier.</td></tr>{% endfor %}</table>
+</div>
+{% endblock %}

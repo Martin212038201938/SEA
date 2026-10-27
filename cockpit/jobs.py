@@ -89,6 +89,16 @@ def nightly(session: Session, days_back: int = 7) -> JobRun:
                 session.commit()
             else:
                 jl("Trello nicht konfiguriert.")
+            if settings.gsc_ready:
+                from .connectors import search_console
+
+                try:
+                    stats["gsc"] = search_console.pull(session, end - dt.timedelta(days=9), end, jl)
+                    session.commit()
+                except Exception as exc:  # organische Daten sind Zusatz, kein Grund den Lauf abzubrechen
+                    jl(f"Search Console fehlgeschlagen: {str(exc)[:200]}")
+            else:
+                jl("Search Console nicht konfiguriert.")
 
         # Umgesetzte Vorschläge erneut gegen den Änderungsverlauf prüfen (bis 7 Tage nach Umsetzung)
         checked = 0
