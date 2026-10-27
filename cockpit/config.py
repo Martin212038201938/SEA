@@ -94,6 +94,7 @@ class Settings:
     anthropic_workspace_id: str = os.getenv("ANTHROPIC_WORKSPACE_ID", "")
     anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5")
     anthropic_model_cheap: str = os.getenv("ANTHROPIC_MODEL_CHEAP", "claude-haiku-5-5")
+    anthropic_model_chat: str = os.getenv("ANTHROPIC_MODEL_CHAT", "claude-fable-5-1")  # Chat-Panel; Rückfall auf ANTHROPIC_MODEL, wenn nicht verfügbar
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-6.1-terra")
     openai_model_cheap: str = os.getenv("OPENAI_MODEL_CHEAP", "gpt-6-luna")

@@ -74,4 +74,84 @@
     });
     ta.addEventListener("keydown", function (e) { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") form.requestSubmit(); });
   };
+
+  // Analyst-Panel: Chat rechts auf jeder Seite, schickt die offene Seite (Pfad + Filter) als Kontext mit.
+  function seaPanel() {
+    const panel = document.getElementById("sea-panel");
+    if (!panel) return;
+    const user = panel.dataset.user;
+    const log = document.getElementById("panel-log"), form = document.getElementById("panel-form");
+    const ta = form.querySelector("textarea"), btn = form.querySelector("button[type=submit]");
+    const ctxEl = document.getElementById("panel-ctx");
+    const store = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+    let thread = store.get("sea-panel-thread", "panel-" + user);
+    if (!thread.startsWith("panel-" + user)) thread = "panel-" + user;
+
+    function esc(s) { return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+    function add(role, html) {
+      const div = document.createElement("div");
+      div.className = "msg " + role;
+      div.innerHTML = html;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+      return div;
+    }
+    function setOpen(open) {
+      document.body.classList.toggle("panel-open", open);
+      store.set("sea-panel-open", open ? "1" : "0");
+      if (open) { ta.focus(); log.scrollTop = log.scrollHeight; }
+    }
+    function pageInfo() {
+      const query = {};
+      new URLSearchParams(location.search).forEach((v, k) => { query[k] = v; });
+      return { path: location.pathname, query };
+    }
+    function loadHistory() {
+      fetch("/api/chat/history?thread=" + encodeURIComponent(thread), { credentials: "same-origin" })
+        .then(r => r.json())
+        .then(d => {
+          (d.messages || []).forEach(m => add(m.role, m.role === "assistant" ? m.html : esc(m.text).replace(/\n/g, "<br>")));
+          log.scrollTop = log.scrollHeight;
+        }).catch(() => {});
+    }
+    function send(q) {
+      if (!q) return;
+      add("user", esc(q).replace(/\n/g, "<br>"));
+      ta.value = ""; btn.disabled = true;
+      const pending = add("assistant", "<span class='muted'>Schaue mir die Daten an …</span>");
+      fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ question: q, thread, page: pageInfo() }) })
+        .then(r => r.json())
+        .then(d => {
+          pending.innerHTML = d.answer_html || esc(d.answer || "");
+          const meta = [];
+          if (d.tool_calls && d.tool_calls.length) meta.push("Werkzeuge: " + d.tool_calls.map(x => x.name).join(", "));
+          if (d.model) meta.push(d.model);
+          if (meta.length) { const t = document.createElement("div"); t.className = "model"; t.textContent = meta.join(" · "); pending.appendChild(t); }
+          log.scrollTop = log.scrollHeight;
+        })
+        .catch(err => { pending.innerHTML = "<span class='err'>Fehler: " + esc(String(err)) + "</span>"; })
+        .finally(() => { btn.disabled = false; ta.focus(); });
+    }
+
+    const title = document.querySelector("main h1");
+    if (ctxEl) ctxEl.textContent = "Kontext: " + (title ? title.textContent.trim() : location.pathname);
+    form.addEventListener("submit", e => { e.preventDefault(); send(ta.value.trim()); });
+    ta.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") form.requestSubmit(); });
+    document.getElementById("panel-chips").addEventListener("click", e => { const b = e.target.closest("button[data-q]"); if (b) send(b.dataset.q); });
+    document.getElementById("panel-close").addEventListener("click", () => setOpen(false));
+    document.getElementById("panel-open").addEventListener("click", () => setOpen(true));
+    document.getElementById("panel-new").addEventListener("click", () => {
+      thread = "panel-" + user + "-" + Date.now().toString(36);
+      store.set("sea-panel-thread", thread);
+      if (big) big.href = "/chat?thread=" + encodeURIComponent(thread);
+      log.innerHTML = "";
+      add("assistant", "<span class='muted small'>Neues Gespräch. Der Kontext ist weiterhin die Seite, die du gerade offen hast.</span>");
+    });
+    const big = document.getElementById("panel-big");
+    if (big) big.href = "/chat?thread=" + encodeURIComponent(thread);
+    const wantOpen = store.get("sea-panel-open", window.innerWidth > 1100 ? "1" : "0") === "1";
+    setOpen(wantOpen);
+    loadHistory();
+  }
+  document.addEventListener("DOMContentLoaded", seaPanel);
 })();

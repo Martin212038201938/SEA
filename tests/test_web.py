@@ -71,3 +71,42 @@ def test_mcp_bearer_wrong(client):
     r = client.post("/mcp/mcp-test/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}, headers={"Accept": "application/json, text/event-stream", "Authorization": "Bearer nope"})
     # Pfad-Geheimnis stimmt, also erlaubt – Bearer ist nur die zweite Möglichkeit
     assert r.status_code == 200
+
+
+def test_page_context_all_routes(client):
+    """Seitenkontext für jede Route baubar und als Prompt formatierbar (gegen die Demo-Datenbank)."""
+    from cockpit.db import session_scope
+    from cockpit.llm import page_context
+
+    with session_scope() as s:
+        for path, query in [("/", {"days": "28"}), ("/vorschlaege", {"status": "alle"}), ("/vorschlaege/1", {}), ("/experimente", {}), ("/experimente/1", {}), ("/suchbegriffe", {"waste": "1", "q": "copilot"}), ("/keywords", {"sort": "cost"}), ("/anzeigen", {}), ("/leads", {"days": "90"}), ("/alerts", {}), ("/reports", {}), ("/reports/1", {}), ("/admin", {}), ("/gibtsnicht", {})]:
+            ctx = page_context.build(s, path, query)
+            assert ctx["title"] and ctx["data_json"].startswith("{"), path
+            prompt = page_context.as_prompt(ctx)
+            assert "AKTUELLE SEITE" in prompt and len(prompt) < page_context.MAX_CHARS + 2000, path
+
+
+def test_chat_panel_api(client, monkeypatch):
+    """Panel-Endpunkte: Verlauf laden, Frage mit Seitenkontext stellen (Modell gemockt), fremder Thread wird umgebogen."""
+    from cockpit.llm import chat as chat_mod, client as llm
+
+    _login(client)
+    seen = {}
+
+    def fake_run(system, msgs, tools, executor, model=None, **kw):
+        seen["system"], seen["model"] = system, model
+        return "Antwort zur Seite.", []
+
+    monkeypatch.setattr(llm, "run_with_tools", fake_run)
+    monkeypatch.setattr(llm, "model_name", lambda cheap=False, chat=False: "chat-modell" if chat else "standard")
+    r = client.post("/api/chat", json={"question": "Was fällt auf?", "thread": "panel-chris", "page": {"path": "/suchbegriffe", "query": {"waste": "1"}}})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["answer"] == "Antwort zur Seite." and d["model"] == "chat-modell" and d["context"] == "Suchbegriffe"
+    assert "AKTUELLE SEITE DES NUTZERS: Suchbegriffe" in seen["system"] and "search_terms" in seen["system"]
+    h = client.get("/api/chat/history?thread=panel-chris").json()
+    assert h["thread"] == "panel-chris" and h["messages"][-1]["role"] == "assistant" and "Antwort zur Seite" in h["messages"][-1]["html"]
+    h2 = client.get("/api/chat/history?thread=panel-martin").json()
+    assert h2["thread"] == "panel-chris"
+    html = client.get("/suchbegriffe").text
+    assert 'id="sea-panel"' in html and "/api/chat/history" in client.get("/static/app.js").text

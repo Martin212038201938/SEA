@@ -14,7 +14,7 @@
 <header class="topbar">
   <a class="brand" href="/"><span class="stripes"></span> SEA-Cockpit</a>
   <nav>
-    {% for href, label in [("/", "Übersicht"), ("/vorschlaege", "Vorschläge"), ("/experimente", "Experimente"), ("/suchbegriffe", "Suchbegriffe"), ("/keywords", "Keywords"), ("/anzeigen", "Anzeigen"), ("/leads", "Leads"), ("/alerts", "Alerts"), ("/reports", "Reports"), ("/chat", "Chat"), ("/admin", "Admin")] %}
+    {% for href, label in [("/", "Übersicht"), ("/vorschlaege", "Vorschläge"), ("/experimente", "Experimente"), ("/suchbegriffe", "Suchbegriffe"), ("/keywords", "Keywords"), ("/anzeigen", "Anzeigen"), ("/leads", "Leads"), ("/alerts", "Alerts"), ("/reports", "Reports"), ("/admin", "Admin")] %}
       <a href="{{ href }}" class="{{ 'active' if (path == href or (href != '/' and path.startswith(href))) else '' }}">{{ label }}</a>
     {% endfor %}
   </nav>
@@ -28,5 +28,33 @@
 <main>
 {% block content %}{% endblock %}
 </main>
+{% if user and path != "/chat" %}
+<aside id="sea-panel" class="panel" data-user="{{ user }}" aria-label="Analyst-Chat">
+  <div class="panel-head">
+    <div>
+      <strong>Analyst</strong>
+      <span class="panel-ctx muted small" id="panel-ctx">Kontext: diese Seite</span>
+    </div>
+    <div class="panel-actions">
+      <a class="btn secondary small" id="panel-big" href="/chat" title="Gespräch in großer Ansicht öffnen">Groß</a>
+      <button class="btn secondary small" type="button" id="panel-new" title="Neues Gespräch beginnen">Neu</button>
+      <button class="btn secondary small" type="button" id="panel-close" title="Panel schließen">×</button>
+    </div>
+  </div>
+  <div class="panel-log" id="panel-log">
+    <div class="msg assistant small muted">Ich sehe die Daten dieser Seite. Frag mich, was auffällt, warum sich eine Zahl bewegt hat oder was als Nächstes sinnvoll wäre. Für andere Zeiträume oder Details hole ich mir die Zahlen selbst.</div>
+  </div>
+  <div class="panel-chips" id="panel-chips">
+    <button type="button" data-q="Was fällt dir auf dieser Seite auf? Nenn mir die drei wichtigsten Punkte mit Zahlen.">Was fällt auf?</button>
+    <button type="button" data-q="Erkläre mir diese Zahlen so, dass ich daraus eine Entscheidung ableiten kann. Was ist belastbar, was ist Zufall?">Einordnen</button>
+    <button type="button" data-q="Welche konkrete Änderung würdest du auf Basis dieser Daten als Nächstes testen und wie messen wir, ob sie wirkt?">Nächster Schritt</button>
+  </div>
+  <form class="panel-form" id="panel-form">
+    <textarea rows="2" placeholder="Frage zu den Daten … (Strg+Enter sendet)"></textarea>
+    <button class="btn" type="submit">Senden</button>
+  </form>
+</aside>
+<button id="panel-open" class="panel-fab" type="button" title="Analyst öffnen">Analyst</button>
+{% endif %}
 </body>
 </html>

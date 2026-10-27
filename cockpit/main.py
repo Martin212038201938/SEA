@@ -356,16 +356,34 @@ def chat_page(request: Request, user: str = Depends(current_user), session: Sess
     return render(request, "chat.html", user, thread=thread, messages=msgs, llm_ready=settings.openai_ready)
 
 
+def _own_thread(user: str, thread: str) -> str:
+    """Threads sind nutzergebunden: fremde Threads werden auf den eigenen Standard-Thread umgebogen."""
+    thread = (thread or "").strip()[:64]
+    if not thread or not thread.startswith(f"{user}-") and not thread.startswith(f"panel-{user}"):
+        return f"panel-{user}"
+    return thread
+
+
 @app.post("/api/chat")
 async def api_chat(request: Request, user: str = Depends(current_user_api), session: Session = Depends(get_session)):
     body = await request.json()
     question = (body.get("question") or "").strip()
-    thread = body.get("thread") or f"{user}-{today_local().isoformat()}"
+    thread = _own_thread(user, body.get("thread") or f"{user}-{today_local().isoformat()}")
     if not question:
         raise HTTPException(400, "Frage fehlt")
-    result = chat_mod.ask(session, user, thread, question)
+    page = body.get("page") if isinstance(body.get("page"), dict) else None
+    if page:
+        page = {"path": str(page.get("path") or "/")[:200], "query": {str(k)[:40]: str(v)[:120] for k, v in (page.get("query") or {}).items()} if isinstance(page.get("query"), dict) else {}}
+    result = chat_mod.ask(session, user, thread, question, page)
     result["answer_html"] = md(result["answer"])
     return JSONResponse(result)
+
+
+@app.get("/api/chat/history")
+def api_chat_history(request: Request, user: str = Depends(current_user_api), session: Session = Depends(get_session)):
+    thread = _own_thread(user, request.query_params.get("thread") or f"panel-{user}")
+    msgs = chat_mod.history(session, thread, 40)
+    return JSONResponse({"thread": thread, "messages": [{"role": m.role, "html": md(m.content) if m.role == "assistant" else None, "text": m.content if m.role == "user" else None} for m in msgs if m.role in ("user", "assistant")]})
 
 
 # ------------------------------------------------------------------ Admin

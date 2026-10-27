@@ -30,9 +30,13 @@ def ready() -> bool:
     return bool(settings.anthropic_api_key) if provider() == "anthropic" else bool(settings.openai_api_key)
 
 
-def model_name(cheap: bool = False) -> str:
+def model_name(cheap: bool = False, chat: bool = False) -> str:
     if provider() == "anthropic":
-        return settings.anthropic_model_cheap if cheap else settings.anthropic_model
+        if cheap:
+            return settings.anthropic_model_cheap
+        if chat and settings.anthropic_model_chat:
+            return settings.anthropic_model_chat
+        return settings.anthropic_model
     return settings.openai_model_cheap if cheap else settings.openai_model
 
 
