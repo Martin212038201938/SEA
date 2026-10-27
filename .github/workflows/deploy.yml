@@ -39,11 +39,13 @@ jobs:
         env:
           ALWAYSDATA_API_KEY: ${{ secrets.ALWAYSDATA_API_KEY }}
         run: |
-          curl -fsS -X POST --basic --user "${ALWAYSDATA_API_KEY} account=${ALWAYSDATA_ACCOUNT}:" \
-            "https://api.alwaysdata.com/v1/site/${ALWAYSDATA_SITE_ID}/restart/"
-          echo "Site ${ALWAYSDATA_SITE_ID} neu gestartet."
-          sleep 20
-          curl -fsS -o /dev/null -w "healthz: %{http_code}\n" "http://sea.copilotenschule.de/healthz"
+          KEY=$(printf '%s' "$ALWAYSDATA_API_KEY" | tr -d '[:space:]')
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST --basic --user "${KEY} account=${ALWAYSDATA_ACCOUNT}:" \
+            "https://api.alwaysdata.com/v1/site/${ALWAYSDATA_SITE_ID}/restart/")
+          echo "Alwaysdata-API Antwort: ${code}"
+          case "$code" in 2*) ;; *) echo "Neustart fehlgeschlagen (Token prüfen: Alwaysdata → Tokens; Secret ohne Leerzeichen/Zeilenumbruch)"; exit 1;; esac
+          sleep 30
+          curl -fsS -o /dev/null -w "healthz: %{http_code}\n" "https://sea.copilotenschule.de/healthz"
       - name: Hinweis ohne API-Key
         if: env.HAS_KEY == 'true' && env.HAS_API != 'true'
         run: echo "Secret ALWAYSDATA_API_KEY fehlt. Code liegt auf dem Server, aber der laufende Prozess ist noch der alte. Im Alwaysdata-Panel die Site neu starten oder das Secret anlegen."
