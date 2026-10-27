@@ -66,3 +66,7 @@ scripts/             Alwaysdata: Setup, Start, Deploy
   Code, der Mutationen ausführt. `run_sql` im Chat/MCP erlaubt nur SELECT.
 - MCP-Endpunkt nur über geheimen Pfad bzw. Bearer-Token; OAuth als Ausbaustufe (siehe docs/CHATGPT-MCP.md).
 - Bookings-Webhook verlangt `X-Webhook-Secret`.
+
+## Stand
+
+Erstes Deployment auf Alwaysdata am 27.10.2026. Betrieb siehe docs/DEPLOY-ALWAYSDATA.md.
