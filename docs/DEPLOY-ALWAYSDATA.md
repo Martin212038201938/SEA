@@ -28,7 +28,6 @@ MCP_TOKEN=<48 Zufallszeichen>
 DEMO_MODE=1                                    # bis der Google-Zugang steht
 ```
 
-Dann `python -m cockpit.cli seed-demo`, damit Chris sofort etwas sieht.
 
 ## 3. Site anlegen
 

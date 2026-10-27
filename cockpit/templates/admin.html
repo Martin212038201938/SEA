@@ -16,12 +16,6 @@
       <form method="post" action="/admin/job/{{ name }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn secondary" type="submit">{{ label }}</button></form>
       {% endfor %}
     </div>
-    <h3>Demo-Daten</h3>
-    <div class="form-row">
-      <form method="post" action="/admin/job/seed-demo"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn secondary" type="submit">Demo-Daten einspielen</button></form>
-      <form method="post" action="/admin/job/purge-demo"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn danger" type="submit">Demo-Daten löschen</button></form>
-      <span class="small muted">{{ 'Demo-Daten vorhanden' if demo_seeded else 'keine Demo-Daten' }}</span>
-    </div>
   </div>
   <div class="card">
     <h2>Alert-Schwellen</h2>

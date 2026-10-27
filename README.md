@@ -24,7 +24,7 @@ pip install -r requirements.txt
 cp .env.example .env            # mindestens COCKPIT_SECRET_KEY, COCKPIT_USERS, MCP_TOKEN setzen
 python -m cockpit.cli hash-password   # Hash für COCKPIT_USERS
 python -m cockpit.cli init-db
-python -m cockpit.cli seed-demo       # synthetische Daten, bis der API-Zugang steht (DEMO_MODE=1)
+python -m cockpit.cli seed-demo       # nur lokal zum Entwickeln/Testen: synthetische Daten (DEMO_MODE=1)
 python -m cockpit.cli serve           # http://127.0.0.1:8000
 python -m pytest -q
 ```
@@ -40,7 +40,7 @@ python -m pytest -q
 | `python -m cockpit.cli test-connections` | Alle Verbindungen prüfen |
 | `python -m cockpit.cli google-auth` | OAuth-Refresh-Token für Google Ads erzeugen (einmalig, lokal) |
 | `python -m cockpit.cli ms-auth` | OAuth-Refresh-Token für Microsoft Advertising erzeugen |
-| `python -m cockpit.cli seed-demo` / `purge-demo` | Demo-Daten rein/raus |
+| `python -m cockpit.cli seed-demo` / `purge-demo` | nur lokal: Demo-Daten rein/raus |
 
 ## Aufbau
 

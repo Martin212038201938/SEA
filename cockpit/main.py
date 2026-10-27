@@ -446,7 +446,7 @@ def admin_page(request: Request, user: str = Depends(current_user), session: Ses
         "Bookings-Webhook": bool(settings.bookings_webhook_secret),
         "MCP-Token": bool(settings.mcp_token),
     }
-    return render(request, "admin.html", user, runs=runs, checks=checks, thresholds=anomalies.thresholds(session), mcp_url=f"{settings.base_url}{mount_path()}/mcp", demo_seeded=get_setting(session, "demo_seeded", "0") == "1")
+    return render(request, "admin.html", user, runs=runs, checks=checks, thresholds=anomalies.thresholds(session), mcp_url=f"{settings.base_url}{mount_path()}/mcp")
 
 
 @app.post("/admin/job/{name}")
@@ -461,14 +461,6 @@ def admin_job(name: str, request: Request, csrf: str = Form(...), user: str = De
     elif name == "alerts":
         for p in ("google", "microsoft"):
             anomalies.persist(session, yesterday(), p, anomalies.evaluate(session, yesterday(), p))
-    elif name == "seed-demo":
-        from . import demo
-
-        demo.seed(session)
-    elif name == "purge-demo":
-        from . import demo
-
-        demo.purge(session)
     else:
         raise HTTPException(404)
     return RedirectResponse("/admin", status_code=303)
