@@ -68,7 +68,7 @@ Google liefert Vortageswerte morgens vollständig; Conversions reifen nach, desh
 1. Auf dem Mac ein SSH-Schlüsselpaar nur für Deployments: `ssh-keygen -t ed25519 -f ~/.ssh/sea-deploy -N ""`.
 2. Öffentlichen Schlüssel im Admin-Panel unter Remote access → SSH → Keys hinterlegen.
 3. Privaten Schlüssel als Repository-Secret `ALWAYSDATA_SSH_KEY` in GitHub eintragen.
-4. Optional: Auf dem Server `~/.sea-deploy.env` anlegen (sauberer Neustart über die Alwaysdata-API; ohne diese Datei beendet das Deploy-Skript den Prozess, und Alwaysdata startet ihn beim nächsten Aufruf neu):
+4. Zweites Secret `ALWAYSDATA_API_KEY` in GitHub anlegen (Alwaysdata → Profil → API → Schlüssel erzeugen). Der Workflow startet die Site damit nach jedem Deployment neu. Hintergrund: SSH-Shell und Web-Prozess laufen bei Alwaysdata auf getrennten Maschinen, ein `pkill` aus der Shell erreicht den Dienst nicht. Ohne dieses Secret liegt nach einem Push der neue Code auf dem Server, läuft aber erst nach einem Neustart im Admin-Panel (Web → Sites → Neustart-Symbol). Alternativ dieselben Werte auf dem Server in `~/.sea-deploy.env`:
 
 ```
 ALWAYSDATA_API_KEY=<API-Key aus Profil → API>

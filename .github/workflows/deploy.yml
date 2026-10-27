@@ -21,8 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HAS_KEY: ${{ secrets.ALWAYSDATA_SSH_KEY != '' }}
+      HAS_API: ${{ secrets.ALWAYSDATA_API_KEY != '' }}
+      ALWAYSDATA_SITE_ID: "1092854"
+      ALWAYSDATA_ACCOUNT: "y-b"
     steps:
-      - name: Deploy per SSH
+      - name: Code auf den Server bringen (SSH)
         if: env.HAS_KEY == 'true'
         uses: appleboy/ssh-action@v1.2.4
         with:
@@ -31,7 +34,20 @@ jobs:
           key: ${{ secrets.ALWAYSDATA_SSH_KEY }}
           script: |
             cd ~/sea-cockpit && bash scripts/alwaysdata_deploy.sh
-      - name: Hinweis ohne Secret
+      - name: Site neu starten (Alwaysdata-API)
+        if: env.HAS_KEY == 'true' && env.HAS_API == 'true'
+        env:
+          ALWAYSDATA_API_KEY: ${{ secrets.ALWAYSDATA_API_KEY }}
+        run: |
+          curl -fsS -X POST --basic --user "${ALWAYSDATA_API_KEY} account=${ALWAYSDATA_ACCOUNT}:" \
+            "https://api.alwaysdata.com/v1/site/${ALWAYSDATA_SITE_ID}/restart/"
+          echo "Site ${ALWAYSDATA_SITE_ID} neu gestartet."
+          sleep 20
+          curl -fsS -o /dev/null -w "healthz: %{http_code}\n" "http://sea.copilotenschule.de/healthz"
+      - name: Hinweis ohne API-Key
+        if: env.HAS_KEY == 'true' && env.HAS_API != 'true'
+        run: echo "Secret ALWAYSDATA_API_KEY fehlt. Code liegt auf dem Server, aber der laufende Prozess ist noch der alte. Im Alwaysdata-Panel die Site neu starten oder das Secret anlegen."
+      - name: Hinweis ohne SSH-Secret
         if: env.HAS_KEY != 'true'
         run: |
           echo "Secret ALWAYSDATA_SSH_KEY fehlt, Deployment uebersprungen."
