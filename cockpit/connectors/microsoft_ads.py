@@ -176,7 +176,7 @@ def pull_all(session: Session, start: dt.date, end: dt.date, log_fn: Callable[[s
 
     base_cols = ["TimePeriod", "Impressions", "Clicks", "Spend", "Conversions", "Revenue", "AllConversions"]
 
-    rows = _download_report(_request(client, "CampaignPerformance", start, end, ["CampaignId", "CampaignName", "CampaignStatus", "BidStrategyType", "ImpressionSharePercent", "ImpressionLostToBudgetPercent", "ImpressionLostToRankAggPercent", *base_cols]))
+    rows = _download_report(_request(client, "CampaignPerformance", start, end, ["CampaignId", "CampaignName", "CampaignStatus", "CampaignType", "ImpressionSharePercent", "ImpressionLostToBudgetPercent", "ImpressionLostToRankAggPercent", *base_cols]))
     for r in rows:
         upsert(
             session,
@@ -185,8 +185,8 @@ def pull_all(session: Session, start: dt.date, end: dt.date, log_fn: Callable[[s
             {
                 "campaign_name": r.get("CampaignName", ""),
                 "status": r.get("CampaignStatus", ""),
-                "channel_type": "SEARCH",
-                "bidding_strategy": r.get("BidStrategyType", ""),
+                "channel_type": (r.get("CampaignType") or "Search").upper(),
+                "bidding_strategy": "",  # kein Report-Feld; käme über die CampaignManagement-API
                 "search_impression_share": _pct(r.get("ImpressionSharePercent")),
                 "search_budget_lost_is": _pct(r.get("ImpressionLostToBudgetPercent")),
                 "search_rank_lost_is": _pct(r.get("ImpressionLostToRankAggPercent")),
