@@ -13,7 +13,9 @@ def client():
 
 
 def _login(client):
-    r = client.post("/login", data={"username": "chris", "password": "pw"}, follow_redirects=False)
+    page = client.get("/login")
+    m = re.search(r'name="login_csrf" value="([^"]+)"', page.text)
+    r = client.post("/login", data={"username": "chris", "password": "pw", "login_csrf": m.group(1)}, follow_redirects=False)
     assert r.status_code == 303
 
 
@@ -162,3 +164,22 @@ def test_search_term_triage(client):
     with session_scope() as s:
         assert triage.negative_queue(s) == [] and triage.summary(s)["ausschliessen_angewendet"] == 1
     assert client.get("/suchbegriffe?offen=0").status_code == 200
+
+
+
+def test_edge_cases(client):
+    """Login ohne Token, kaputtes JSON, unsinnige Zeiträume, ungültiges Experimentdatum."""
+    r = client.post("/login", data={"username": "chris", "password": "pw"}, follow_redirects=False)
+    assert r.status_code == 200 and "abgelaufen" in r.text
+    _login(client)
+    assert client.post("/api/chat", content="{nicht json", headers={"Content-Type": "application/json"}).status_code == 400
+    assert client.post("/api/suchbegriffe/entscheidung", content="[1,2]", headers={"Content-Type": "application/json"}).status_code == 400
+    for p in ["/?days=abc", "/?days=-5", "/?days=99999", "/suchbegriffe?days=0&end=kein-datum", "/api/timeseries?days=x"]:
+        assert client.get(p).status_code == 200, p
+    csrf = _csrf(client)
+    assert client.post("/experimente/neu", data={"csrf": csrf, "name": "x", "start_date": "31.02.2026", "platform": "google"}).status_code == 400
+    from cockpit.llm import page_context
+    from cockpit.db import session_scope
+
+    with session_scope() as s:
+        assert page_context.build(s, "/gibtsnicht", {"days": "abc"})["title"] == "/gibtsnicht"

@@ -24,7 +24,10 @@ MAX_CHARS = 28_000
 
 
 def _period(query: dict[str, str]) -> tuple[dt.date, dt.date, int, str]:
-    days = int(query.get("days") or 28)
+    try:
+        days = max(1, min(730, int(query.get("days") or 28)))
+    except (TypeError, ValueError):
+        days = 28
     end = parse_date(query.get("end"), yesterday())
     start = parse_date(query.get("start"), end - dt.timedelta(days=days - 1))
     return start, end, days, query.get("platform") or "all"

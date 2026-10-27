@@ -57,10 +57,17 @@ def render(request: Request, name: str, user: str | None = None, **ctx) -> HTMLR
     return templates.TemplateResponse(request, name, ctx)
 
 
-def _period_from(request: Request) -> tuple[dt.date, dt.date, int, str]:
+def _int(value, default: int, lo: int = 1, hi: int = 730) -> int:
+    try:
+        return max(lo, min(hi, int(value)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _period_from(request: Request, end_default: dt.date | None = None) -> tuple[dt.date, dt.date, int, str]:
     q = request.query_params
-    days = int(q.get("days") or 28)
-    end = parse_date(q.get("end"), yesterday())
+    days = _int(q.get("days"), 28)
+    end = parse_date(q.get("end"), end_default or yesterday())
     start = parse_date(q.get("start"), end - dt.timedelta(days=days - 1))
     platform = q.get("platform") or "all"
     return start, end, days, platform
@@ -76,16 +83,30 @@ templates.env.filters["strip_choices"] = lambda text: chat_choices.parse(text or
 
 # ------------------------------------------------------------------ Login
 
+LOGIN_CSRF_COOKIE = "sea_login_csrf"
+
+
+def _login_page(request: Request, error: str | None):
+    token = request.cookies.get(LOGIN_CSRF_COOKIE) or uuid.uuid4().hex
+    resp = render(request, "login.html", error=error, login_csrf=token)
+    resp.set_cookie(LOGIN_CSRF_COOKIE, token, max_age=3600, httponly=True, samesite="lax", secure=settings.base_url.startswith("https"))
+    return resp
+
+
 @app.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
-    return render(request, "login.html", error=None)
+    return _login_page(request, None)
 
 
 @app.post("/login")
-def login(request: Request, username: str = Form(...), password: str = Form(...)):
+def login(request: Request, username: str = Form(...), password: str = Form(...), login_csrf: str = Form("")):
+    expected = request.cookies.get(LOGIN_CSRF_COOKIE, "")
+    if not expected or not hmac.compare_digest(expected, login_csrf or ""):
+        return _login_page(request, "Formular abgelaufen, bitte noch einmal anmelden.")
     if not authenticate(username, password):
-        return render(request, "login.html", error="Benutzername oder Passwort falsch.")
+        return _login_page(request, "Benutzername oder Passwort falsch.")
     resp = RedirectResponse("/", status_code=303)
+    resp.delete_cookie(LOGIN_CSRF_COOKIE)
     resp.set_cookie(SESSION_COOKIE, make_session_cookie(username.strip().lower()), max_age=SESSION_MAX_AGE, httponly=True, samesite="lax", secure=settings.base_url.startswith("https"))
     return resp
 
@@ -140,7 +161,7 @@ def dashboard(request: Request, user: str = Depends(current_user), session: Sess
 @app.get("/api/timeseries")
 def api_timeseries(request: Request, user: str = Depends(current_user_api), session: Session = Depends(get_session)):
     q = request.query_params
-    days = int(q.get("days") or 90)
+    days = _int(q.get("days"), 90)
     end = parse_date(q.get("end"), yesterday())
     start = end - dt.timedelta(days=days - 1)
     gran = q.get("granularity") or ("week" if days > 120 else "day")
@@ -200,6 +221,8 @@ def experiments_page(request: Request, user: str = Depends(current_user), sessio
 @app.post("/experimente/neu")
 def experiment_new(request: Request, name: str = Form(...), hypothesis: str = Form(""), start_date: str = Form(...), end_date: str = Form(""), platform: str = Form("google"), campaign_ids: list[str] = Form([]), baseline_days: int = Form(0), csrf: str = Form(...), user: str = Depends(current_user), session: Session = Depends(get_session)):
     check_csrf(request, csrf)
+    if not parse_date(start_date) or (end_date and not parse_date(end_date)):
+        raise HTTPException(400, "Datum bitte als JJJJ-MM-TT angeben")
     res = tool_call(session, user, "create_experiment", {"name": name, "hypothesis": hypothesis, "start_date": start_date, "end_date": end_date or None, "platform": platform, "campaign_ids": campaign_ids, "baseline_days": baseline_days})
     return RedirectResponse(f"/experimente/{res['id']}", status_code=303)
 
@@ -245,7 +268,7 @@ def search_terms_page(request: Request, user: str = Depends(current_user), sessi
 
 @app.post("/api/suchbegriffe/entscheidung")
 async def search_term_decide(request: Request, user: str = Depends(current_user_api), session: Session = Depends(get_session)):
-    body = await request.json()
+    body = await _json_body(request)
     try:
         row = triage.decide(session, user, str(body.get("platform") or "google"), str(body.get("search_term") or ""), str(body.get("decision") or ""), str(body.get("negative_match") or "phrase"), str(body.get("note") or ""))
     except ValueError as exc:
@@ -298,7 +321,7 @@ def organic_page(request: Request, user: str = Depends(current_user), session: S
 
 @app.get("/leads", response_class=HTMLResponse)
 def leads_page(request: Request, user: str = Depends(current_user), session: Session = Depends(get_session)):
-    start, end, days, platform = _period_from(request)
+    start, end, days, platform = _period_from(request, end_default=today_local())  # Leads von heute sofort sichtbar
     rows = session.execute(select(Lead).where(Lead.created_on >= start, Lead.created_on <= end).order_by(Lead.created_on.desc())).scalars().all()
     summary = kpis.leads_summary(session, start, end)
     ov = kpis.overview(session, start, end, "all")
@@ -409,9 +432,19 @@ def _own_thread(user: str, thread: str) -> str:
     return thread
 
 
+async def _json_body(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "JSON erwartet")
+    if not isinstance(body, dict):
+        raise HTTPException(400, "JSON-Objekt erwartet")
+    return body
+
+
 @app.post("/api/chat")
 async def api_chat(request: Request, user: str = Depends(current_user_api), session: Session = Depends(get_session)):
-    body = await request.json()
+    body = await _json_body(request)
     question = (body.get("question") or "").strip()
     thread = _own_thread(user, body.get("thread") or f"{user}-{today_local().isoformat()}")
     if not question:
