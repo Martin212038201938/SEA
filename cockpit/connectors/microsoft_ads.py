@@ -289,5 +289,6 @@ def test_connection() -> str:
 
     auth = _authorization()
     client = ServiceClient(service="CustomerManagementService", version=13, authorization_data=auth, environment=ENVIRONMENT)
-    acc = client.GetAccount(AccountId=int(settings.ms_account_id))
-    return f"Verbunden: {acc.Account.Name} ({acc.Account.Id}), Status {acc.Account.AccountLifeCycleStatus}"
+    resp = client.GetAccount(AccountId=int(settings.ms_account_id))
+    acc = getattr(resp, "Account", resp)  # je nach SDK-Version direkt AdvertiserAccount oder Hülle
+    return f"Verbunden: {acc.Name} ({acc.Id}), Status {acc.AccountLifeCycleStatus}"
