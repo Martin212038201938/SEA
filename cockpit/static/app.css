@@ -106,3 +106,13 @@ body.has-panel main { margin-right: var(--panel-w); max-width: none; }
   body.has-panel .topbar, body.has-panel .demo-banner, body.has-panel main { margin-right: 0; }
   .panel { position: static; width: auto; height: 70vh; border-left: 0; border-top: 2px solid var(--line); box-shadow: none; }
 }
+
+/* Auswahlkarten im Chat */
+.choices { margin-top: .6rem; border-top: 1px solid var(--line); padding-top: .5rem; display: flex; flex-direction: column; gap: .35rem; }
+.choices-q { font-weight: 600; color: var(--navy); font-size: .88rem; margin-bottom: .15rem; }
+.choice { text-align: left; background: #f4f6fa; border: 1px solid var(--line); border-radius: 8px; padding: .45rem .65rem; cursor: pointer; font-family: inherit; color: var(--text); display: flex; flex-direction: column; gap: .1rem; }
+.choice:hover { border-color: var(--blau); background: #eef2fa; }
+.choice:disabled { cursor: default; opacity: .6; }
+.choice.chosen { opacity: 1; border-color: var(--blau); background: #e3eafa; }
+.choice-label { font-weight: 600; font-size: .86rem; }
+.choice-desc { font-size: .78rem; color: var(--muted); }

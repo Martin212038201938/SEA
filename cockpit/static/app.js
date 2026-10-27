@@ -39,6 +39,28 @@
     fetch("/api/timeseries?" + q, { credentials: "same-origin" }).then(r => r.json()).then(data => window.seaChart(canvasId, data));
   };
 
+  // Auswahlkarten (Frage + Optionen) unter einer Antwort rendern; Klick sendet die Option als Nachricht
+  function renderChoices(container, cards, send) {
+    (cards || []).forEach(card => {
+      const box = document.createElement("div");
+      box.className = "choices";
+      if (card.question) { const q = document.createElement("div"); q.className = "choices-q"; q.textContent = card.question; box.appendChild(q); }
+      card.options.forEach(opt => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "choice";
+        b.innerHTML = "<span class='choice-label'></span>" + (opt.description ? "<span class='choice-desc'></span>" : "");
+        b.querySelector(".choice-label").textContent = opt.label;
+        if (opt.description) b.querySelector(".choice-desc").textContent = opt.description;
+        b.addEventListener("click", () => {
+          box.querySelectorAll(".choice").forEach(x => { x.disabled = true; x.classList.toggle("chosen", x === b); });
+          send(card.question ? card.question + " → " + opt.label : opt.label);
+        });
+        box.appendChild(b);
+      });
+      container.appendChild(box);
+    });
+  }
+
   // Chat
   window.seaChat = function (formId, logId, thread) {
     const form = document.getElementById(formId), log = document.getElementById(logId);
@@ -68,7 +90,7 @@
       const pending = add("assistant", "<span class='muted'>Analysiere …</span>");
       fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ question: q, thread }) })
         .then(r => r.json())
-        .then(d => { pending.innerHTML = d.answer_html || esc(d.answer || ""); if (d.tool_calls && d.tool_calls.length) { const t = document.createElement("div"); t.className = "toolcalls"; t.textContent = "Werkzeuge: " + d.tool_calls.map(x => x.name).join(", "); pending.appendChild(t); } })
+        .then(d => { pending.innerHTML = d.answer_html || esc(d.answer || ""); if (d.tool_calls && d.tool_calls.length) { const t = document.createElement("div"); t.className = "toolcalls"; t.textContent = "Werkzeuge: " + d.tool_calls.map(x => x.name).join(", "); pending.appendChild(t); } renderChoices(pending, d.choices, q2 => { ta.value = q2; form.requestSubmit(); }); })
         .catch(err => { pending.innerHTML = "<span class='err'>Fehler: " + esc(String(err)) + "</span>"; })
         .finally(() => { btn.disabled = false; ta.focus(); });
     });
@@ -106,7 +128,10 @@
       fetch("/api/chat/history?thread=" + encodeURIComponent(thread), { credentials: "same-origin" })
         .then(r => r.json())
         .then(d => {
-          (d.messages || []).forEach(m => add(m.role, m.role === "assistant" ? m.html : esc(m.text).replace(/\n/g, "<br>")));
+          (d.messages || []).forEach((m, i, arr) => {
+            const div = add(m.role, m.role === "assistant" ? m.html : esc(m.text).replace(/\n/g, "<br>"));
+            if (m.role === "assistant" && i === arr.length - 1) renderChoices(div, m.choices, send);  // nur die letzte Karte bleibt klickbar
+          });
           log.scrollTop = log.scrollHeight;
         }).catch(() => {});
     }
@@ -123,6 +148,7 @@
           if (d.tool_calls && d.tool_calls.length) meta.push("Werkzeuge: " + d.tool_calls.map(x => x.name).join(", "));
           if (d.model) meta.push(d.model);
           if (meta.length) { const t = document.createElement("div"); t.className = "model"; t.textContent = meta.join(" · "); pending.appendChild(t); }
+          renderChoices(pending, d.choices, send);
           log.scrollTop = log.scrollHeight;
         })
         .catch(err => { pending.innerHTML = "<span class='err'>Fehler: " + esc(String(err)) + "</span>"; })

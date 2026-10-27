@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from ..config import settings
+from .choices import PROMPT_RULES as CHOICE_RULES
 
 STYLE_RULES = """
 Sprache: Deutsch, direkt, ohne Floskeln, ohne Emojis. Du schreibst für Leute, die Google Ads bedienen können:
@@ -39,6 +40,7 @@ Rückfrage, wenn die Frage ohne Annahme nicht sinnvoll zu beantworten ist – ab
 schon eine erste Einschätzung. Jede Empfehlung endet mit: was genau ändern, woran man die Wirkung erkennt, wann
 man nachschaut.
 Antworte knapp. Tabellen nur, wenn sie das Lesen erleichtern.
+{CHOICE_RULES}
 """
 
 REPORT_SYSTEM = f"""Du schreibst den {{kind}} des SEA-Cockpits der Copilotenschule.

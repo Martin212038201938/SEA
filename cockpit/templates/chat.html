@@ -5,7 +5,7 @@
 <p class="sub">Fragen in normaler Sprache; das Modell holt sich die Zahlen aus der Datenbank. Beispiele: „Warum ist der CPC in den letzten 14 Tagen gestiegen?“ · „Welche Suchbegriffe haben im Oktober Geld ohne Conversion gekostet?“ · „Ich habe Vorschlag 3 gestern umgesetzt.“ · „Vergleiche 1.7.–31.8. mit 2.9.–13.10.“</p>
 {% if not llm_ready %}<p class="err">Kein API-Schlüssel für das Sprachmodell gesetzt (ANTHROPIC_API_KEY bzw. OPENAI_API_KEY in der .env). Der Chat antwortet erst danach.</p>{% endif %}
 <div class="chat" id="log">
-  {% for m in messages %}{% if m.role in ("user", "assistant") %}<div class="msg {{ m.role }}">{% if m.role == "assistant" %}{{ m.content | md | safe }}{% else %}{{ m.content }}{% endif %}</div>{% endif %}{% endfor %}
+  {% for m in messages %}{% if m.role in ("user", "assistant") %}<div class="msg {{ m.role }}">{% if m.role == "assistant" %}{{ m.content | strip_choices | md | safe }}{% else %}{{ m.content }}{% endif %}</div>{% endif %}{% endfor %}
 </div>
 <form id="chatform" class="chat-form">
   <textarea placeholder="Frage eingeben … (Strg+Enter sendet)" autofocus></textarea>

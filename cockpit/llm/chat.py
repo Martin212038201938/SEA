@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import ChatMessage
-from . import client as llm, page_context
+from . import choices, client as llm, page_context
 from .prompts import CHAT_SYSTEM
 from .tools import call, openai_tools
 
@@ -79,4 +79,5 @@ def ask(session: Session, user: str, thread_id: str, question: str, page: dict[s
         answer, calls = f"Fehler bei der Anfrage an das Modell: {str(exc)[:300]}", []
     session.add(ChatMessage(thread_id=thread_id, user=user, role="assistant", content=answer))
     session.flush()
-    return {"answer": answer, "tool_calls": calls, "model": model, "context": context_title}
+    clean, cards = choices.parse(answer)
+    return {"answer": clean, "choices": cards, "tool_calls": calls, "model": model, "context": context_title}

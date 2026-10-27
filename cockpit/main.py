@@ -23,7 +23,7 @@ from .analysis import anomalies, experiments as exp_mod, kpis
 from .auth import SESSION_COOKIE, SESSION_MAX_AGE, authenticate, check_csrf, csrf_token, current_user, current_user_api, make_session_cookie
 from .config import settings
 from .db import get_session, init_db
-from .llm import chat as chat_mod
+from .llm import chat as chat_mod, choices as chat_choices
 from .llm.tools import call as tool_call, experiment_dict, suggestion_dict
 from .mcp_server import mcp_asgi_app, mcp_server, mount_path
 from .models import Alert, Experiment, JobRun, Lead, Report, Suggestion, utcnow
@@ -71,6 +71,7 @@ def md(text: str) -> str:
 
 
 templates.env.filters["md"] = md
+templates.env.filters["strip_choices"] = lambda text: chat_choices.parse(text or "")[0]
 
 
 # ------------------------------------------------------------------ Login
@@ -383,7 +384,14 @@ async def api_chat(request: Request, user: str = Depends(current_user_api), sess
 def api_chat_history(request: Request, user: str = Depends(current_user_api), session: Session = Depends(get_session)):
     thread = _own_thread(user, request.query_params.get("thread") or f"panel-{user}")
     msgs = chat_mod.history(session, thread, 40)
-    return JSONResponse({"thread": thread, "messages": [{"role": m.role, "html": md(m.content) if m.role == "assistant" else None, "text": m.content if m.role == "user" else None} for m in msgs if m.role in ("user", "assistant")]})
+    out = []
+    for m in msgs:
+        if m.role == "assistant":
+            clean, cards = chat_choices.parse(m.content)
+            out.append({"role": "assistant", "html": md(clean), "choices": cards})
+        elif m.role == "user":
+            out.append({"role": "user", "text": m.content})
+    return JSONResponse({"thread": thread, "messages": out})
 
 
 # ------------------------------------------------------------------ OAuth Microsoft Advertising
