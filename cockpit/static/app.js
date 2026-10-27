@@ -79,6 +79,7 @@
   function seaPanel() {
     const panel = document.getElementById("sea-panel");
     if (!panel) return;
+    document.body.classList.add("has-panel");
     const user = panel.dataset.user;
     const log = document.getElementById("panel-log"), form = document.getElementById("panel-form");
     const ta = form.querySelector("textarea"), btn = form.querySelector("button[type=submit]");
@@ -95,11 +96,6 @@
       log.appendChild(div);
       log.scrollTop = log.scrollHeight;
       return div;
-    }
-    function setOpen(open) {
-      document.body.classList.toggle("panel-open", open);
-      store.set("sea-panel-open", open ? "1" : "0");
-      if (open) { ta.focus(); log.scrollTop = log.scrollHeight; }
     }
     function pageInfo() {
       const query = {};
@@ -138,8 +134,6 @@
     form.addEventListener("submit", e => { e.preventDefault(); send(ta.value.trim()); });
     ta.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") form.requestSubmit(); });
     document.getElementById("panel-chips").addEventListener("click", e => { const b = e.target.closest("button[data-q]"); if (b) send(b.dataset.q); });
-    document.getElementById("panel-close").addEventListener("click", () => setOpen(false));
-    document.getElementById("panel-open").addEventListener("click", () => setOpen(true));
     document.getElementById("panel-new").addEventListener("click", () => {
       thread = "panel-" + user + "-" + Date.now().toString(36);
       store.set("sea-panel-thread", thread);
@@ -149,8 +143,6 @@
     });
     const big = document.getElementById("panel-big");
     if (big) big.href = "/chat?thread=" + encodeURIComponent(thread);
-    const wantOpen = store.get("sea-panel-open", window.innerWidth > 1100 ? "1" : "0") === "1";
-    setOpen(wantOpen);
     loadHistory();
   }
   document.addEventListener("DOMContentLoaded", seaPanel);

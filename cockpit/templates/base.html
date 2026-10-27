@@ -9,7 +9,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" defer></script>
   <script src="/static/app.js" defer></script>
 </head>
-<body>
+<body class="{% if user and path != '/chat' %}has-panel{% endif %}">
 {% if user %}
 <header class="topbar">
   <a class="brand" href="/"><span class="stripes"></span> SEA-Cockpit</a>
@@ -38,7 +38,6 @@
     <div class="panel-actions">
       <a class="btn secondary small" id="panel-big" href="/chat" title="Gespräch in großer Ansicht öffnen">Groß</a>
       <button class="btn secondary small" type="button" id="panel-new" title="Neues Gespräch beginnen">Neu</button>
-      <button class="btn secondary small" type="button" id="panel-close" title="Panel schließen">×</button>
     </div>
   </div>
   <div class="panel-log" id="panel-log">
@@ -54,7 +53,6 @@
     <button class="btn" type="submit">Senden</button>
   </form>
 </aside>
-<button id="panel-open" class="panel-fab" type="button" title="Analyst öffnen">Analyst</button>
 {% endif %}
 </body>
 </html>
