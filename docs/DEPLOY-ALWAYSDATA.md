@@ -22,7 +22,7 @@ bevor das Setup läuft. Falls `python3` auf dem Server zu alt ist: `PYTHON=pytho
 
 ```
 COCKPIT_SECRET_KEY=<64 Zufallszeichen, z. B. python3 -c "import secrets;print(secrets.token_urlsafe(48))">
-COCKPIT_BASE_URL=https://sea.y-b.alwaysdata.net
+COCKPIT_BASE_URL=https://sea.copilotenschule.de
 COCKPIT_USERS=chris:<hash>;martin:<hash>      # Hash: python -m cockpit.cli hash-password
 MCP_TOKEN=<48 Zufallszeichen>
 DEMO_MODE=1                                    # bis der Google-Zugang steht
@@ -37,13 +37,13 @@ Admin-Panel → Web → Sites → „Site hinzufügen“:
 | Feld | Wert |
 |---|---|
 | Typ | User program |
-| Adressen | `sea.y-b.alwaysdata.net` (Unteradresse der kostenlosen Account-Domain; alternativ später `sea.copilotenschule.de`) |
+| Adressen | `sea.copilotenschule.de` (Unteradressen von alwaysdata.net erlaubt Alwaysdata nicht). DNS liegt bei IONOS: dort CNAME `sea` → `y-b.alwaysdata.net` anlegen. |
 | Befehl | `/home/y-b/sea-cockpit/scripts/alwaysdata_start.sh` |
-| Arbeitsverzeichnis | `/home/y-b/sea-cockpit` |
+| Arbeitsverzeichnis | `sea-cockpit` (relativ zum Home-Verzeichnis; ein absoluter Pfad wird von Alwaysdata an /home/y-b/ angehängt) |
 | Umgebung | nichts nötig; Alwaysdata setzt `IP` und `PORT`, das Startskript nutzt sie |
 | HTTPS | Let's Encrypt aktivieren (bei alwaysdata.net-Adressen automatisch) |
 
-Nach dem Speichern 30 Sekunden warten, dann `https://sea.y-b.alwaysdata.net/healthz` aufrufen. Antwort
+Nach dem Speichern 30 Sekunden warten, dann `https://sea.copilotenschule.de/healthz` aufrufen. Antwort
 `{"ok": true, …}` heißt: läuft. Fehler stehen in `~/admin/logs/sites/`.
 
 Wenn die Site-Form eine andere Variablenbenennung erwartet, zeigt die Hilfe neben dem Feld „Befehl“ die
@@ -51,14 +51,14 @@ richtigen Namen; im Startskript dann `${IP}`/`${PORT}` anpassen.
 
 ## 4. Scheduled Tasks
 
-Admin-Panel → Advanced → Scheduled tasks → „Task hinzufügen“, Typ „Befehl“, jeweils mit Arbeitsverzeichnis
-`/home/y-b/sea-cockpit`:
+Admin-Panel → Advanced → Scheduled tasks → „Task hinzufügen“, Typ „Execute the command“, Arbeitsverzeichnis
+`sea-cockpit`, Zeitplan in Crontab-Syntax (`40 5 * * *`, `30 6 * * 1`, `50 6 1 * *`). Stand 27.10.2026: alle drei angelegt.
 
 | Zeitpunkt | Befehl |
 |---|---|
-| täglich 05:40 | `.venv/bin/python -m cockpit.cli nightly` |
-| montags 06:30 | `.venv/bin/python -m cockpit.cli weekly` |
-| 1. des Monats 06:50 | `.venv/bin/python -m cockpit.cli monthly` |
+| täglich 05:40 | `/home/y-b/sea-cockpit/.venv/bin/python -m cockpit.cli nightly` |
+| montags 06:30 | `/home/y-b/sea-cockpit/.venv/bin/python -m cockpit.cli weekly` |
+| 1. des Monats 06:50 | `/home/y-b/sea-cockpit/.venv/bin/python -m cockpit.cli monthly` |
 
 Google liefert Vortageswerte morgens vollständig; Conversions reifen nach, deshalb lädt `nightly` immer die letzten
 7 Tage neu (Upsert). Zeitzone der Tasks im Panel auf Europe/Berlin stellen.
@@ -68,7 +68,7 @@ Google liefert Vortageswerte morgens vollständig; Conversions reifen nach, desh
 1. Auf dem Mac ein SSH-Schlüsselpaar nur für Deployments: `ssh-keygen -t ed25519 -f ~/.ssh/sea-deploy -N ""`.
 2. Öffentlichen Schlüssel im Admin-Panel unter Remote access → SSH → Keys hinterlegen.
 3. Privaten Schlüssel als Repository-Secret `ALWAYSDATA_SSH_KEY` in GitHub eintragen.
-4. Auf dem Server `~/.sea-deploy.env` anlegen (für den automatischen Neustart):
+4. Optional: Auf dem Server `~/.sea-deploy.env` anlegen (sauberer Neustart über die Alwaysdata-API; ohne diese Datei beendet das Deploy-Skript den Prozess, und Alwaysdata startet ihn beim nächsten Aufruf neu):
 
 ```
 ALWAYSDATA_API_KEY=<API-Key aus Profil → API>

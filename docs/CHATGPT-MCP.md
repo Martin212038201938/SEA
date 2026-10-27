@@ -10,7 +10,7 @@ Experimenten, Setzen des Vorschlagsstatus und manuelle Leads. Nichts davon schre
 1. Workspace-Admin: ChatGPT → Einstellungen → Connectors (bzw. „Apps & Connectors“) → eigene Connectoren/MCP-Server
    erlauben. Die Bezeichnung und der Ort ändern sich bei OpenAI regelmäßig; gesucht wird die Option, einen
    „Custom connector“ mit einer MCP-Server-URL anzulegen (je nach Stand hinter dem „Developer mode“).
-2. Neuen Connector anlegen: Name „SEA-Cockpit“, URL `https://sea.y-b.alwaysdata.net/mcp/<MCP_TOKEN>/mcp`,
+2. Neuen Connector anlegen: Name „SEA-Cockpit“, URL `https://sea.copilotenschule.de/mcp/<MCP_TOKEN>/mcp`,
    Authentifizierung „Keine“ (das Geheimnis steckt im Pfad). Beschreibung: „Google-Ads-Daten der Copilotenschule“.
 3. Im Workspace freigeben, damit Chris ihn in seinen Chats aktivieren kann.
 4. Testfrage in ChatGPT mit aktiviertem Connector: „Wie haben sich Kosten und CPL in den letzten 28 Tagen entwickelt?“
