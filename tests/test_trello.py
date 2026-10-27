@@ -27,3 +27,24 @@ def test_parse_and_derive(monkeypatch):
     assert trello._channel_for({"kanal": "Bing"}, [], "x", "") == "microsoft"
     assert trello._channel_for({}, [], "x", "gclid=abc") == "google"
     assert trello._channel_for({}, [], "x", "") == "unbekannt"
+
+
+BOOKING = """**Name:** Frank Augustin
+**Unternehmen:** —
+**E-Mail:** frank@example.de
+**Telefon:** 931
+**Termin:** 14.10.2026 14:15 Uhr
+**Service:** Erstgespräch Copilotenschule
+
+---
+*Buchungs-ID: AAMkADM0Y2Ri*
+"""
+
+
+def test_booking_card_and_outbound_reply():
+    f = trello.parse_description(BOOKING)
+    assert f["name"] == "Frank Augustin" and f["email"] == "frank@example.de" and "unternehmen" not in f
+    assert f["termin"].startswith("14.10.2026") and f["buchungsid"] == "AAMkADM0Y2Ri"
+    assert trello._kind_for(f, BOOKING, "[BOOKING] Frank Augustin — Stadtwerke") == "erstgespraech"
+    assert trello._kind_for({}, "Sehr geehrte Damen und Herren, gern ein Erstgespräch", "Reply: Agnes", channel="outbound") == "outbound-antwort"
+    assert trello._kind_for({}, "Empfangsdatum: 2026-10-15 (Copilotenschule Kontaktformular)", "x") == "kontaktformular"

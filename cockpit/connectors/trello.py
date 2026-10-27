@@ -37,7 +37,7 @@ DEFAULT_STATUS_MAP = {
     "abgelehnt": "verloren",
 }
 
-_FIELD = re.compile(r"^\s*(vorname|nachname|name|e-?mail|unternehmen|firma|telefon|kanal|auftragswert|wert|erlös|erloes|art|empfangsdatum)\s*:\s*(.+?)\s*$", re.I | re.M)
+_FIELD = re.compile(r"^\s*(vorname|nachname|name|e-?mail|unternehmen|firma|telefon|kanal|auftragswert|wert|erlös|erloes|art|empfangsdatum|termin|service|buchungs-?id)\s*:\s*(.+?)\s*$", re.I | re.M)
 
 # Status „ignorieren“ = Liste enthält keine Leads (Ablagen, Verträge, Downloads); solche Karten werden übersprungen.
 IGNORE = "ignorieren"
@@ -51,10 +51,15 @@ def _get(path: str, **params) -> Any:
 
 
 def parse_description(desc: str) -> dict[str, str]:
+    """Feldzeilen „Name: Wert“ lesen; Markdown-Fett (**Name:** Wert) und Platzhalter „—“ werden toleriert."""
     out: dict[str, str] = {}
-    for m in _FIELD.finditer(desc or ""):
+    cleaned = (desc or "").replace("**", "").replace("__", "")
+    for m in _FIELD.finditer(cleaned):
         key = m.group(1).lower().replace("-", "")
-        out[key] = m.group(2).strip()
+        val = m.group(2).strip().rstrip("*").strip()
+        if val in ("—", "-", "–", ""):
+            continue
+        out[key] = val
     return out
 
 
@@ -115,16 +120,19 @@ def _channel_for(fields: dict[str, str], labels: list[str], list_name: str, desc
     return "unbekannt"
 
 
-def _kind_for(fields: dict[str, str], desc: str) -> str:
+def _kind_for(fields: dict[str, str], desc: str, card_name: str = "", channel: str = "") -> str:
+    """Art des Leads: Bookings-Termin, Kontaktformular, Angebotsanfrage, Antwort auf Outbound-Mail."""
     if fields.get("art"):
         return fields["art"].lower()
+    if "[booking]" in (card_name or "").lower() or fields.get("buchungsid") or fields.get("service"):
+        return "erstgespraech"
+    if channel == "outbound":
+        return "outbound-antwort"
     d = (desc or "").lower()
     if "kontaktformular" in d:
         return "kontaktformular"
     if "angebotsanfrage" in d:
         return "angebotsanfrage"
-    if "erstgespräch" in d or "bookings" in d:
-        return "erstgespraech"
     return "unbekannt"
 
 
@@ -144,6 +152,7 @@ def pull(session: Session) -> int:
         fields = parse_description(desc)
         name = " ".join(x for x in (fields.get("vorname"), fields.get("nachname")) if x) or fields.get("name") or c.get("name", "")
         labels = [l.get("name", "").lower() for l in c.get("labels", [])]
+        channel = _channel_for(fields, labels, list_name, desc)
         upsert(
             session,
             Lead,
@@ -157,10 +166,10 @@ def pull(session: Session) -> int:
                 "status": status,
                 "value": _money(fields.get("auftragswert") or fields.get("wert")),
                 "revenue": _money(fields.get("erlös") or fields.get("erloes")),
-                "channel": _channel_for(fields, labels, list_name, desc),
-                "kind": _kind_for(fields, desc),
+                "channel": channel,
+                "kind": _kind_for(fields, desc, c.get("name", ""), channel),
                 "url": c.get("shortUrl", ""),
-                "notes": f"{c.get('name', '')} [Liste: {list_name}]",
+                "notes": " ".join(x for x in (c.get("name", ""), f"[Liste: {list_name}]", f"[Termin: {fields['termin']}]" if fields.get("termin") else "") if x),
             },
         )
         n += 1
