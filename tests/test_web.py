@@ -31,7 +31,7 @@ def test_login_required(client):
 
 def test_pages_render(client):
     _login(client)
-    for path in ["/", "/vorschlaege", "/experimente", "/suchbegriffe", "/keywords", "/anzeigen", "/leads", "/alerts", "/reports", "/chat", "/admin", "/api/timeseries?days=30"]:
+    for path in ["/", "/hilfe", "/vorschlaege", "/experimente", "/suchbegriffe", "/keywords", "/anzeigen", "/leads", "/alerts", "/reports", "/chat", "/admin", "/api/timeseries?days=30"]:
         r = client.get(path)
         assert r.status_code == 200, path
 

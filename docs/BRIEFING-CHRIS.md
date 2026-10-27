@@ -3,12 +3,13 @@
 ## Was es ist
 
 Eine kleine Web-App (Login mit Passwort), die jede Nacht unser Google-Ads-Konto ausliest und die Zahlen dauerhaft
-speichert: Kampagnen, Anzeigengruppen, Keywords, Suchbegriffe, Anzeigen, Änderungsverlauf, Auktionsdaten. Dazu die
-echten Leads aus Trello und die Erstgespräche aus Bookings. Microsoft Advertising kommt dazu, sobald die Kampagnen
-wieder laufen.
+speichert: Kampagnen, Anzeigengruppen, Keywords, Suchbegriffe, Anzeigen, Änderungsverlauf. Microsoft Advertising
+wird genauso gelesen. Dazu die echten Leads aus dem Trello-Board „Alle Sales Pipelines“, inklusive der Bookings-Termine,
+die dort als Karten landen.
 
-Aus den Daten macht das Cockpit drei Dinge: Es warnt bei Auffälligkeiten (täglich, nur wenn etwas ist), es schreibt
-montags einen Wochenreport mit priorisierten Vorschlägen, und es beantwortet im Chat Fragen zu den Zahlen.
+Aus den Daten macht das Cockpit drei Dinge: Es warnt bei Auffälligkeiten (täglich per Mail, nur wenn etwas ist), es
+schreibt montags einen Wochenreport mit priorisierten Vorschlägen (kommt ebenfalls per Mail), und es diskutiert mit
+dir im Panel rechts auf jeder Seite über genau die Zahlen, die du gerade vor dir hast.
 
 Es ändert nichts im Konto. Du entscheidest und setzt um.
 
@@ -42,7 +43,17 @@ Es ändert nichts im Konto. Du entscheidest und setzt um.
 | Suchbegriffe / Keywords / Anzeigen | Rohdaten mit Filtern; „nur ohne Conversion“ ist die Negativlisten-Quelle |
 | Leads | Trello, Bookings, manuell; Kanal und Werte korrigieren |
 | Reports | Wochen- und Monatsreports |
-| Chat | Fragen in normaler Sprache, z. B. „Warum ist der CPC seit zwei Wochen höher?“ |
+| Analyst (rechts) | Chat auf jeder Seite; kennt die Daten der offenen Seite inklusive Filter und holt sich den Rest selbst. „Neu“ startet ein frisches Gespräch, „Groß“ öffnet die Vollansicht |
+| Hilfe | Diese Seite |
+
+## Der Analyst rechts
+
+Das Panel ist kein Suchfeld, sondern ein Sparringspartner. Es antwortet auf die Seite, die du offen hast: Auf der
+Suchbegriffsseite mit Filter „ohne Conversion“ kennt es genau diese Liste, auf einem Report den Reporttext, bei einem
+Experiment den Vorher/Nachher-Vergleich. Gute Fragen sind die, bei denen du selbst eine These hast: „Ich würde
+`Copilot Schulung` pausieren, was spricht dagegen?“ oder „Reichen zwei Conversions, um das zu entscheiden?“. Es sagt
+dir, wenn die Datenlage zu dünn ist, und schlägt vor, wie man es belastbar macht. Wenn du etwas umgesetzt hast, kannst
+du es ihm einfach sagen, es setzt den Vorschlagsstatus.
 
 ## Was das Cockpit nicht ist
 

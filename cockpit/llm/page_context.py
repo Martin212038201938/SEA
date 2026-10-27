@@ -122,6 +122,9 @@ def build(session: Session, path: str, query: dict[str, str] | None = None) -> d
         if r:
             title, desc = r.title, f"Report ({r.type}) für {r.period_start}–{r.period_end}, erzeugt mit {r.model}. Der volle Text steht in report_md, die abgeleiteten Vorschläge darunter."
             data = {"report_md": r.content_md, "suggestions": [suggestion_dict(s) for s in session.execute(select(Suggestion).where(Suggestion.report_id == r.id).order_by(Suggestion.priority)).scalars()]}
+    elif path == "/hilfe":
+        title, desc = "Hilfe", "Briefing/Anleitung zum Cockpit; Fragen hier sind meist Bedienfragen."
+        data = {"period": period}
     elif path == "/admin":
         title, desc = "Admin", "Systemstatus: Jobs, Anbindungen."
         data = {"jobs": jobs.status_summary(session)}

@@ -425,6 +425,12 @@ def ms_oauth_callback(request: Request, user: str = Depends(current_user)):
     return render(request, "oauth_result.html", user, ok=True, message=check)
 
 
+@app.get("/hilfe", response_class=HTMLResponse)
+def help_page(request: Request, user: str = Depends(current_user)):
+    text = (BASE.parent / "docs" / "BRIEFING-CHRIS.md").read_text(encoding="utf-8")
+    return render(request, "help.html", user, body=md(text))
+
+
 # ------------------------------------------------------------------ Admin
 
 @app.get("/admin", response_class=HTMLResponse)
