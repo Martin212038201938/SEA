@@ -172,7 +172,7 @@ def pull_keywords(session: Session, client, start: dt.date, end: dt.date) -> int
                metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions,
                metrics.conversions_value, metrics.all_conversions
         FROM keyword_view
-        WHERE {_between(start, end)} AND ad_group_criterion.status != 'REMOVED'
+        WHERE {_between(start, end)}
     """
     n = 0
     for r in _rows(client, q):
@@ -451,7 +451,7 @@ def pull_conversion_actions(session: Session, client) -> int:
     q = """
         SELECT conversion_action.id, conversion_action.name, conversion_action.category, conversion_action.status,
                conversion_action.primary_for_goal, conversion_action.counting_type,
-               metrics.conversions, metrics.all_conversions
+               metrics.all_conversions, metrics.all_conversions_value
         FROM conversion_action
         WHERE segments.date DURING LAST_30_DAYS
     """
@@ -468,7 +468,7 @@ def pull_conversion_actions(session: Session, client) -> int:
                 "status": _enum_name(ca.status),
                 "primary_for_goal": bool(ca.primary_for_goal),
                 "counting_type": _enum_name(ca.counting_type),
-                "conversions_30d": float(r.metrics.conversions),
+                "conversions_30d": float(r.metrics.all_conversions),
                 "all_conversions_30d": float(r.metrics.all_conversions),
             },
         )
@@ -505,8 +505,13 @@ def pull_all(session: Session, start: dt.date, end: dt.date, log_fn: Callable[[s
         stats[name] = fn(session, client, start, end)
         log_fn(f"google {name}: {stats[name]} Zeilen")
         session.flush()
-    stats["change_events"] = pull_change_events(session, client, 14)
-    stats["conversion_actions"] = pull_conversion_actions(session, client)
+    for name, fn in (("change_events", lambda: pull_change_events(session, client, 14)), ("conversion_actions", lambda: pull_conversion_actions(session, client))):
+        try:
+            stats[name] = fn()
+        except Exception as exc:  # einzelner Teilabzug darf den Lauf nicht abbrechen
+            log.warning("google %s fehlgeschlagen: %s", name, exc)
+            log_fn(f"google {name}: FEHLER {str(exc)[:200]}")
+            stats[name] = -1
     # Auktionsdaten wöchentlich (letzte 7 Tage, endend am Zeitraumende)
     stats["auction_insights"] = pull_auction_insights(session, client, end - dt.timedelta(days=6), end)
     log_fn(f"google change_events: {stats['change_events']}, conversion_actions: {stats['conversion_actions']}, auction: {stats['auction_insights']}")
