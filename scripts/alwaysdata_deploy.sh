@@ -8,6 +8,7 @@ git fetch --quiet origin
 git reset --hard --quiet origin/main
 source .venv/bin/activate
 pip install -q -r requirements.txt
+pip install -q -e . --no-deps  # Paket importierbar machen (geplante Aufgaben starten im Home-Verzeichnis)
 python -m cockpit.cli init-db
 chmod +x scripts/*.sh
 echo "Code-Stand: $(git log --oneline | head -1)"

@@ -9,6 +9,7 @@ $PY --version
 source .venv/bin/activate
 pip install --upgrade pip wheel >/dev/null
 pip install -r requirements.txt
+pip install -e . --no-deps
 mkdir -p data
 [ -f .env ] || { cp .env.example .env; echo "ACHTUNG: .env aus Vorlage angelegt – jetzt ausfüllen."; }
 python -m cockpit.cli init-db
