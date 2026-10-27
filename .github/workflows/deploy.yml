@@ -31,4 +31,6 @@ jobs:
             cd ~/sea-cockpit && bash scripts/alwaysdata_deploy.sh
       - name: Hinweis ohne Secret
         if: ${{ secrets.ALWAYSDATA_SSH_KEY == '' }}
-        run: echo "Secret ALWAYSDATA_SSH_KEY fehlt – Deployment übersprungen. Manuell: ssh y-b@ssh-y-b.alwaysdata.net 'cd ~/sea-cockpit && bash scripts/alwaysdata_deploy.sh'"
+        run: |
+          echo "Secret ALWAYSDATA_SSH_KEY fehlt, Deployment uebersprungen."
+          echo "Manuell: ssh y-b@ssh-y-b.alwaysdata.net 'cd ~/sea-cockpit && bash scripts/alwaysdata_deploy.sh'"
