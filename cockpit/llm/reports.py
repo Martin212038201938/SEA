@@ -82,7 +82,7 @@ def generate(session: Session, kind: str = "weekly", end: dt.date | None = None,
     user_content = "WISSENSBASIS (Auszug):\n" + _knowledge_digest() + "\n\nDATENPAKET (JSON):\n" + json_dumps(pack)
     try:
         result = llm.structured(system, user_content, SUGGESTION_SCHEMA, name="sea_report")
-        model = settings.openai_model
+        model = llm.model_name()
         content = result.get("report_md", "")
         suggestions = result.get("suggestions", [])
     except llm.LLMUnavailable as exc:

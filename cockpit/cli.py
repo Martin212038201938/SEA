@@ -125,7 +125,7 @@ def cmd_test_connections(_args):
 
         return client.plain("Antworte mit einem Wort.", "Sag: bereit")
 
-    check("OpenAI", settings.openai_ready, openai_check)
+    check(f"Sprachmodell ({settings.llm_provider})", settings.openai_ready, openai_check)
 
     def teams_check():
         from . import notify

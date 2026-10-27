@@ -21,7 +21,7 @@ warum, erwarteter Effekt, Schritte. Hauptnutzer ist Chris, unabhängig von Marti
 | Umsetzungs-Tracking | Chris meldet; Cockpit verifiziert gegen den Änderungsverlauf; jede Umsetzung wird zum Experiment | Wirkung messbar |
 | Wahrheitsebene | Trello-Board (Kontaktformular-Leads, Status, Auftragswert, Erlös) plus Bookings-Buchungen per Power-Automate-Webhook | Ads-Conversions sind unvollständig (Bookings auf Microsoft-Domain) |
 | Reports | Tägliche Alerts bei Schwellenverletzung, Wochenreport montags, Monatsreport mit Experiment-Bilanz; Versand Teams und E-Mail | Von Martin so gewählt |
-| Sprachmodell | OpenAI API im Backend (`gpt-6.1-terra`, konfigurierbar) für Reports, Vorschläge, Chat | Gleicher Anbieter wie der Workspace, vorhandenes Guthaben |
+| Sprachmodell | Umschaltbar per `LLM_PROVIDER`: Anthropic (Claude Sonnet 5.5 für Reports und Chat, Haiku 5.5 für Alert-Einordnung) oder OpenAI (`gpt-6.1-terra`). Produktiv seit 27.10.: Anthropic | Vorhandenes API-Guthaben bei beiden; die Werkzeugschicht ist anbieterneutral |
 | Wissensbasis | Chris' ChatGPT-Analysen plus Konto-Stammdaten im Ordner `knowledge/` | Von Martin gewählt; erweiterbar |
 | Betrieb | Martin deployt (GitHub → Alwaysdata), Chris nutzt | Chris hat keinen Cloud-Account |
 

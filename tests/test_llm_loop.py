@@ -24,7 +24,7 @@ class FakeResponses:
 
 def test_tool_loop(monkeypatch):
     fake = SimpleNamespace(responses=FakeResponses())
-    monkeypatch.setattr(llm, "_client", lambda: fake)
+    monkeypatch.setattr(llm, "_openai", lambda: fake)
     seen = []
 
     def executor(name, args):

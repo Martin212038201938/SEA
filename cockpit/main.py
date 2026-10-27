@@ -377,7 +377,7 @@ def admin_page(request: Request, user: str = Depends(current_user), session: Ses
         "Google Ads": settings.google_ready,
         "Microsoft Ads": settings.ms_ready,
         "Trello": settings.trello_ready,
-        "OpenAI": settings.openai_ready,
+        f"Sprachmodell ({settings.llm_provider})": settings.openai_ready,
         "Teams-Webhook": bool(settings.teams_webhook_url),
         "SMTP": bool(settings.smtp_host and settings.alert_email_to),
         "Bookings-Webhook": bool(settings.bookings_webhook_secret),

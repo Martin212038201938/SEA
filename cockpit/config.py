@@ -86,6 +86,10 @@ class Settings:
 
     bookings_webhook_secret: str = os.getenv("BOOKINGS_WEBHOOK_SECRET", "")
 
+    llm_provider: str = os.getenv("LLM_PROVIDER", "openai")  # anthropic | openai
+    anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
+    anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5")
+    anthropic_model_cheap: str = os.getenv("ANTHROPIC_MODEL_CHEAP", "claude-haiku-5-5")
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-6.1-terra")
     openai_model_cheap: str = os.getenv("OPENAI_MODEL_CHEAP", "gpt-6-luna")
@@ -104,6 +108,9 @@ class Settings:
 
     @property
     def openai_ready(self) -> bool:
+        """Sprachmodell einsatzbereit (Name historisch; gilt für den konfigurierten Anbieter)."""
+        if (self.llm_provider or "openai").lower() == "anthropic":
+            return bool(self.anthropic_api_key)
         return bool(self.openai_api_key)
 
     @property

@@ -141,9 +141,13 @@ unter Admin nachlesen.
 Feldnamen des Triggers können je Connector-Version leicht abweichen; im Flow-Designer aus der dynamischen
 Inhaltsliste wählen. Das Cockpit legt daraus einen Lead der Art „erstgespraech“ an.
 
-## Teil E: OpenAI, Teams, E-Mail
+## Teil E: Sprachmodell, Teams, E-Mail
 
-- https://platform.openai.com → API Keys → neuer Schlüssel für Projekt „SEA-Cockpit“ → `OPENAI_API_KEY`.
+- Anthropic (Standard, `LLM_PROVIDER=anthropic`): https://console.anthropic.com → API Keys → Create Key → `ANTHROPIC_API_KEY`.
+  Unter Limits ein Monatslimit setzen. Modelle: `claude-sonnet-5-5` (Reports, Chat), `claude-haiku-5-5` (kurze Einordnungen).
+  Identitätsföderation (kurzlebige Tokens) funktioniert hier nicht: Alwaysdata ist kein unterstützter Identitätsanbieter.
+
+- Alternativ OpenAI (`LLM_PROVIDER=openai`): https://platform.openai.com → API Keys → neuer Schlüssel → `OPENAI_API_KEY`.
   Unter Billing ein monatliches Limit setzen (z. B. 30 €). Modell: `OPENAI_MODEL=gpt-6.1-terra` (Standard),
   günstiger `gpt-6-luna`.
 - Teams: Im Zielkanal → Workflows → „Post to a channel when a webhook request is received“ → URL → `TEAMS_WEBHOOK_URL`.
