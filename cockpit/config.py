@@ -88,6 +88,7 @@ class Settings:
 
     llm_provider: str = os.getenv("LLM_PROVIDER", "openai")  # anthropic | openai
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
+    anthropic_workspace_id: str = os.getenv("ANTHROPIC_WORKSPACE_ID", "")
     anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5")
     anthropic_model_cheap: str = os.getenv("ANTHROPIC_MODEL_CHEAP", "claude-haiku-5-5")
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")

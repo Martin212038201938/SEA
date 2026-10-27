@@ -63,7 +63,8 @@ def _anthropic():
         raise LLMUnavailable("ANTHROPIC_API_KEY fehlt – Reports und Chat sind ohne Schlüssel nicht verfügbar.")
     from anthropic import Anthropic
 
-    return Anthropic(api_key=settings.anthropic_api_key)
+    headers = {"anthropic-workspace-id": settings.anthropic_workspace_id} if settings.anthropic_workspace_id else None
+    return Anthropic(api_key=settings.anthropic_api_key, default_headers=headers)
 
 
 def _to_anthropic_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
