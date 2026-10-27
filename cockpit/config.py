@@ -66,6 +66,7 @@ class Settings:
     google_client_secret: str = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
     google_refresh_token: str = os.getenv("GOOGLE_OAUTH_REFRESH_TOKEN", "")
     google_developer_token: str = os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN", "unused") or "unused"
+    google_service_account_file: str = os.getenv("GOOGLE_ADS_SERVICE_ACCOUNT_FILE", "")
 
     ms_enabled: bool = _bool("MS_ADS_ENABLED", False)
     ms_developer_token: str = os.getenv("MS_ADS_DEVELOPER_TOKEN", "")
@@ -107,9 +108,11 @@ class Settings:
 
     @property
     def google_ready(self) -> bool:
-        return self.google_enabled and all(
-            [self.google_customer_id, self.google_client_id, self.google_client_secret, self.google_refresh_token]
-        )
+        if not (self.google_enabled and self.google_customer_id):
+            return False
+        if self.google_service_account_file:
+            return Path(self.google_service_account_file).is_file()
+        return all([self.google_client_id, self.google_client_secret, self.google_refresh_token])
 
     @property
     def ms_ready(self) -> bool:

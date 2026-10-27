@@ -9,6 +9,13 @@ Zugriffsstufe hängt am Cloud-Projekt), Microsoft-Dokumentation „Get started�
 
 ## Teil A: Google Ads API (Konto 748-342-2182, Login yellowboatschulung@gmail.com)
 
+**Stand 27.10.2026, umgesetzt:** Das Cloud-Projekt `copilotenschule-dashboard` (ID bubbly-observer-500418-b8) hat die
+Google Ads API aktiviert und bereits die Zugriffsstufe **Explorer**. Statt OAuth-Refresh-Token nutzt das Cockpit das
+**Dienstkonto** `sea-reporting-reader@bubbly-observer-500418-b8.iam.gserviceaccount.com`; der JSON-Schlüssel liegt auf
+dem Server unter `data/google-service-account.json` (`GOOGLE_ADS_SERVICE_ACCOUNT_FILE`). Das Dienstkonto muss im
+Google-Ads-Konto als Nutzer eingetragen sein (Verwaltung → Zugriff und Sicherheit → +, Zugriffsebene „Nur Lesen“ reicht;
+laut Google-Doku ohne Einladungsbestätigung). Die Schritte A1–A5 unten beschreiben den OAuth-Weg als Alternative.
+
 ### A1. Google-Cloud-Projekt anlegen
 
 1. https://console.cloud.google.com mit yellowboatschulung@gmail.com anmelden.

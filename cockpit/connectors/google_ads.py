@@ -37,13 +37,18 @@ def _client():
         from google.ads.googleads.client import GoogleAdsClient
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError("Paket google-ads fehlt: pip install google-ads") from exc
-    cfg = {
-        "developer_token": settings.google_developer_token,
-        "client_id": settings.google_client_id,
-        "client_secret": settings.google_client_secret,
-        "refresh_token": settings.google_refresh_token,
-        "use_proto_plus": True,
-    }
+    cfg = {"developer_token": settings.google_developer_token, "use_proto_plus": True}
+    if settings.google_service_account_file:
+        # Dienstkonto: in Google Ads als Nutzer eingetragen, kein Refresh-Token nötig
+        cfg["json_key_file_path"] = settings.google_service_account_file
+    else:
+        cfg.update(
+            {
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+                "refresh_token": settings.google_refresh_token,
+            }
+        )
     if settings.google_login_customer_id:
         cfg["login_customer_id"] = settings.google_login_customer_id
     return GoogleAdsClient.load_from_dict(cfg)
