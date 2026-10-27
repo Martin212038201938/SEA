@@ -38,7 +38,7 @@ DEFAULT_STATUS_MAP = {
     "abgelehnt": "verloren",
 }
 
-_FIELD = re.compile(r"^\s*(vorname|nachname|name|e-?mail|unternehmen|firma|telefon|kanal|auftragswert|wert|erlös|erloes|art|empfangsdatum|termin|service|buchungs-?id)\s*:\s*(.+?)\s*$", re.I | re.M)
+_FIELD = re.compile(r"^\s*(vorname|nachname|name|e-?mail|unternehmen|firma|telefon|kanal|auftragswert|wert|erlös|erloes|art|empfangsdatum|termin|service|buchungs-?id|klick-?id|kampagne|landingpage|referrer|suchbegriff)\s*:\s*(.+?)\s*$", re.I | re.M)
 
 # Status „ignorieren“ = Liste enthält keine Leads (Ablagen, Verträge, Downloads); solche Karten werden übersprungen.
 IGNORE = "ignorieren"
@@ -105,10 +105,24 @@ def _received_date(fields: dict[str, str]) -> dt.date | None:
         return None
 
 
+def _click_id(fields: dict[str, str]) -> tuple[str, str]:
+    """„Klick-ID: gclid=…“ → (Typ, Wert); Typ gclid|gbraid|wbraid|msclkid."""
+    raw = fields.get("klickid", "")
+    if "=" in raw:
+        k, v = raw.split("=", 1)
+        return k.strip().lower(), v.strip()
+    return "", ""
+
+
 def _channel_for(fields: dict[str, str], labels: list[str], list_name: str, desc: str) -> str:
     explicit = fields.get("kanal", "").lower()
     if explicit:
-        return "microsoft" if explicit == "bing" else explicit
+        return {"bing": "microsoft", "direkt": "direkt"}.get(explicit, explicit)
+    kind, _ = _click_id(fields)
+    if kind in ("gclid", "gbraid", "wbraid"):
+        return "google"
+    if kind == "msclkid":
+        return "microsoft"
     for l in labels:
         if l in ("google", "microsoft", "bing", "organisch", "empfehlung", "linkedin", "seminarmarkt"):
             return "microsoft" if l == "bing" else l
@@ -158,6 +172,10 @@ def _candidate(card: dict[str, Any], list_name: str, status: str) -> dict[str, A
         "channel": channel,
         "kind": _kind_for(fields, desc, card.get("name", ""), channel),
         "url": card.get("shortUrl", ""),
+        "click_id_type": _click_id(fields)[0],
+        "click_id": _click_id(fields)[1],
+        "campaign": fields.get("kampagne", ""),
+        "landing_page": fields.get("landingpage", ""),
         "notes": " ".join(x for x in (card.get("name", ""), f"[Liste: {list_name}]", f"[Termin: {fields['termin']}]" if fields.get("termin") else "") if x),
     }
 
@@ -182,6 +200,9 @@ def merge_duplicates(cands: list[dict[str, Any]]) -> list[dict[str, Any]]:
         lead["value"] = max(c["value"] for c in members)
         lead["revenue"] = max(c["revenue"] for c in members)
         lead["name"] = next((c["name"] for c in members if c["name"]), first["name"])
+        with_click = next((c for c in members if c.get("click_id")), None)
+        if with_click:
+            lead["click_id_type"], lead["click_id"], lead["campaign"], lead["landing_page"] = with_click["click_id_type"], with_click["click_id"], with_click["campaign"], with_click["landing_page"]
         lead["company"] = next((c["company"] for c in members if c["company"]), "")
         lead["phone"] = next((c["phone"] for c in members if c["phone"]), "")
         if len(members) > 1:

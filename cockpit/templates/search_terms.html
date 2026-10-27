@@ -3,21 +3,38 @@
 {% block title %}Suchbegriffe{% endblock %}
 {% block content %}
 <h1>Suchbegriffe</h1>
-<p class="sub">Tatsächliche Suchanfragen, die Anzeigen ausgelöst haben. Begriffe mit Kosten und ohne Conversion sind Kandidaten für die Negativliste.</p>
+<p class="sub">Tatsächliche Suchanfragen, die Anzeigen ausgelöst haben. Triage: „Ausschließen“ setzt den Begriff auf die <a href="/negativliste">Negativliste</a> ({{ triage.ausschliessen_offen }} offen, {{ triage.ausschliessen_angewendet }} eingetragen), „Behalten“ nimmt ihn aus der Liste, „Beobachten“ parkt ihn.</p>
 {{ period_nav(days, platform, "/suchbegriffe") }}
 <form method="get" class="form-row card" style="margin-bottom:1rem">
   <input type="hidden" name="days" value="{{ days }}"><input type="hidden" name="platform" value="{{ platform }}">
   <div><label>Enthält</label><input name="q" value="{{ q }}"></div>
   <div><label>Mindestkosten €</label><input name="min_cost" value="{{ min_cost }}" type="number" step="1"></div>
   <div><label>&nbsp;</label><label style="display:inline"><input type="checkbox" name="waste" value="1" {{ 'checked' if waste else '' }}> nur ohne Conversion</label></div>
+  <div><label>&nbsp;</label><label style="display:inline"><input type="hidden" name="offen" value="0"><input type="checkbox" name="offen" value="1" {{ 'checked' if offen else '' }}> nur unentschiedene</label></div>
   <div><button class="btn" type="submit">Filtern</button></div>
 </form>
 <div class="card">
-<table>
-  <tr><th>Suchbegriff</th><th>Keyword</th><th>Status</th><th class="num">Impr.</th><th class="num">Klicks</th><th class="num">CTR</th><th class="num">Kosten</th><th class="num">Conv.</th><th class="num">CPL</th><th>Zuletzt</th></tr>
+<table id="terms">
+  <tr><th>Suchbegriff</th><th>Keyword</th><th>Status</th><th class="num">Impr.</th><th class="num">Klicks</th><th class="num">Kosten</th><th class="num">Conv.</th><th class="num">CPL</th><th>Zuletzt</th><th>Triage</th></tr>
   {% for t in terms %}
-  <tr><td>{{ t.search_term }}</td><td class="small">{{ t.matched_keyword }} <span class="muted">{{ t.match_type }}</span></td><td class="small">{{ t.status }}</td><td class="num">{{ t.impressions }}</td><td class="num">{{ t.clicks }}</td><td class="num">{{ t.ctr | pct }}</td><td class="num">{{ t.cost | eur }}</td><td class="num">{{ t.conversions | num(1) }}</td><td class="num">{{ t.cpl | eur }}</td><td class="small">{{ t.last_seen }}</td></tr>
-  {% else %}<tr><td colspan="10" class="muted">Keine Suchbegriffe im Zeitraum.</td></tr>{% endfor %}
+  <tr data-platform="{{ t.platform }}" data-term="{{ t.search_term }}">
+    <td>{{ t.search_term }}{% if t.platform != 'google' %} <span class="badge">{{ t.platform }}</span>{% endif %}</td>
+    <td class="small">{{ t.matched_keyword }} <span class="muted">{{ t.match_type }}</span></td>
+    <td class="small">{{ t.status }}</td>
+    <td class="num">{{ t.impressions }}</td><td class="num">{{ t.clicks }}</td><td class="num">{{ t.cost | eur }}</td><td class="num">{{ t.conversions | num(1) }}</td><td class="num">{{ t.cpl | eur }}</td>
+    <td class="small">{{ t.last_seen }}</td>
+    <td class="triage-cell">
+      {% if t.decision %}<span class="badge {{ 'kritisch' if t.decision == 'ausschliessen' else ('umgesetzt' if t.decision == 'behalten' else 'warn') }}">{{ t.decision }}{{ ' ✓' if t.decision_applied else '' }}</span>{% endif %}
+      <span class="triage-btns">
+        <button type="button" class="btn small danger" data-decision="ausschliessen" data-match="phrase" title="Als Wortgruppe ausschließen">Ausschl.</button>
+        <button type="button" class="btn small secondary" data-decision="ausschliessen" data-match="exact" title="Nur exakt ausschließen">exakt</button>
+        <button type="button" class="btn small secondary" data-decision="behalten">Behalten</button>
+        <button type="button" class="btn small secondary" data-decision="beobachten">Beob.</button>
+      </span>
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="10" class="muted">Keine Suchbegriffe im Zeitraum (oder alle schon entschieden; Filter „nur unentschiedene“ abwählen).</td></tr>{% endfor %}
 </table>
 </div>
+<script>document.addEventListener("DOMContentLoaded", () => seaTriage("terms"));</script>
 {% endblock %}

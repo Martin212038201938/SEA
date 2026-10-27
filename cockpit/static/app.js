@@ -97,6 +97,31 @@
     ta.addEventListener("keydown", function (e) { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") form.requestSubmit(); });
   };
 
+  // Suchbegriffs-Triage: Entscheidung per Klick, Zeile wird markiert (kein Reload)
+  window.seaTriage = function (tableId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    table.addEventListener("click", e => {
+      const btn = e.target.closest("button[data-decision]");
+      if (!btn) return;
+      const tr = btn.closest("tr"), cell = btn.closest(".triage-cell");
+      const payload = { platform: tr.dataset.platform, search_term: tr.dataset.term, decision: btn.dataset.decision, negative_match: btn.dataset.match || "phrase" };
+      cell.querySelectorAll("button").forEach(b => b.disabled = true);
+      fetch("/api/suchbegriffe/entscheidung", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify(payload) })
+        .then(r => r.json())
+        .then(d => {
+          let badge = cell.querySelector(".badge");
+          if (!badge) { badge = document.createElement("span"); cell.insertBefore(badge, cell.firstChild); }
+          const dec = d.decision.decision;
+          badge.className = "badge " + (dec === "ausschliessen" ? "kritisch" : dec === "behalten" ? "umgesetzt" : "warn");
+          badge.textContent = dec + (dec === "ausschliessen" ? " (" + d.decision.negative_match + ")" : "");
+          tr.classList.add("decided");
+        })
+        .catch(() => alert("Speichern fehlgeschlagen"))
+        .finally(() => cell.querySelectorAll("button").forEach(b => b.disabled = false));
+    });
+  };
+
   // Analyst-Panel: Chat rechts auf jeder Seite, schickt die offene Seite (Pfad + Filter) als Kontext mit.
   function seaPanel() {
     const panel = document.getElementById("sea-panel");

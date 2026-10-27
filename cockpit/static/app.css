@@ -116,3 +116,10 @@ body.has-panel main { margin-right: var(--panel-w); max-width: none; }
 .choice.chosen { opacity: 1; border-color: var(--blau); background: #e3eafa; }
 .choice-label { font-weight: 600; font-size: .86rem; }
 .choice-desc { font-size: .78rem; color: var(--muted); }
+
+/* Triage */
+.triage-cell { white-space: nowrap; }
+.triage-btns { display: inline-flex; gap: .25rem; margin-left: .3rem; }
+.triage-btns .btn.small { padding: .15rem .45rem; font-size: .74rem; }
+tr.decided td { opacity: .55; }
+tr.decided td.triage-cell { opacity: 1; }

@@ -227,6 +227,11 @@ class Lead(Base):
     kind: Mapped[str] = mapped_column(String(32), default="kontaktformular")  # kontaktformular/erstgespraech
     notes: Mapped[str] = mapped_column(Text, default="")
     url: Mapped[str] = mapped_column(String(500), default="")
+    # Attribution (aus Website-Formular über Trello-Karte): Klick-ID für Offline-Conversions
+    click_id_type: Mapped[str] = mapped_column(String(16), default="")  # gclid | gbraid | wbraid | msclkid
+    click_id: Mapped[str] = mapped_column(String(255), default="")
+    campaign: Mapped[str] = mapped_column(String(255), default="")
+    landing_page: Mapped[str] = mapped_column(String(255), default="")
     updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
     __table_args__ = (UniqueConstraint("source", "external_id"),)
 
@@ -322,6 +327,25 @@ class JobRun(Base):
     status: Mapped[str] = mapped_column(String(16), default="läuft")  # läuft/ok/fehler
     log: Mapped[str] = mapped_column(Text, default="")
     stats: Mapped[Any] = mapped_column(JSON, default=dict)
+
+
+class SearchTermDecision(Base):
+    """Triage-Entscheidung zu einem Suchbegriff: ausschließen (→ Negativliste), behalten, beobachten."""
+
+    __tablename__ = "search_term_decisions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    platform: Mapped[str] = mapped_column(String(16), index=True)
+    search_term: Mapped[str] = mapped_column(String(500), index=True)
+    decision: Mapped[str] = mapped_column(String(16), index=True)  # ausschliessen | behalten | beobachten
+    negative_match: Mapped[str] = mapped_column(String(16), default="phrase")  # exact | phrase
+    scope: Mapped[str] = mapped_column(String(16), default="campaign")  # campaign | account
+    campaign_id: Mapped[str] = mapped_column(String(64), default="")
+    note: Mapped[str] = mapped_column(Text, default="")
+    decided_by: Mapped[str] = mapped_column(String(64), default="")
+    decided_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+    applied: Mapped[bool] = mapped_column(Boolean, default=False)  # im Werbekonto eingetragen
+    applied_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    __table_args__ = (UniqueConstraint("platform", "search_term"),)
 
 
 class Setting(Base):

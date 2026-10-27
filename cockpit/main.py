@@ -19,7 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from . import __version__, jobs
-from .analysis import anomalies, experiments as exp_mod, kpis
+from .analysis import anomalies, experiments as exp_mod, kpis, triage
 from .auth import SESSION_COOKIE, SESSION_MAX_AGE, authenticate, check_csrf, csrf_token, current_user, current_user_api, make_session_cookie
 from .config import settings
 from .db import get_session, init_db
@@ -230,8 +230,42 @@ def search_terms_page(request: Request, user: str = Depends(current_user), sessi
     start, end, days, platform = _period_from(request)
     q = request.query_params
     only_waste = q.get("waste") == "1"
-    terms = kpis.search_terms(session, start, end, platform, float(q.get("min_cost") or 0), only_waste, 300, q.get("q") or None)
-    return render(request, "search_terms.html", user, terms=terms, days=days, platform=platform, start=start, end=end, waste=only_waste, q=q.get("q", ""), min_cost=q.get("min_cost", ""))
+    only_open = q.get("offen", "1") == "1"
+    terms = kpis.search_terms(session, start, end, platform, float(q.get("min_cost") or 0), only_waste, 400, q.get("q") or None)
+    decisions = triage.decisions_map(session, platform)
+    for t in terms:
+        d = decisions.get((t["platform"], t["search_term"]))
+        t["decision"] = d.decision if d else ""
+        t["decision_applied"] = bool(d and d.applied)
+    if only_open:
+        terms = [t for t in terms if not t["decision"]]
+    terms = terms[:300]
+    return render(request, "search_terms.html", user, terms=terms, days=days, platform=platform, start=start, end=end, waste=only_waste, q=q.get("q", ""), min_cost=q.get("min_cost", ""), offen=only_open, triage=triage.summary(session))
+
+
+@app.post("/api/suchbegriffe/entscheidung")
+async def search_term_decide(request: Request, user: str = Depends(current_user_api), session: Session = Depends(get_session)):
+    body = await request.json()
+    try:
+        row = triage.decide(session, user, str(body.get("platform") or "google"), str(body.get("search_term") or ""), str(body.get("decision") or ""), str(body.get("negative_match") or "phrase"), str(body.get("note") or ""))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return JSONResponse({"ok": True, "decision": triage.row_dict(row), "summary": triage.summary(session)})
+
+
+@app.get("/negativliste", response_class=HTMLResponse)
+def negative_list_page(request: Request, user: str = Depends(current_user), session: Session = Depends(get_session)):
+    platform = request.query_params.get("platform") or "all"
+    return render(request, "negative_list.html", user, platform=platform, queue=triage.negative_queue(session, platform, include_applied=False), applied=triage.negative_queue(session, platform, include_applied=True), text=triage.negative_list_text(session, platform), summary=triage.summary(session))
+
+
+@app.post("/negativliste/angewendet")
+async def negative_list_applied(request: Request, user: str = Depends(current_user), session: Session = Depends(get_session)):
+    form = await request.form()
+    check_csrf(request, form.get("csrf", ""))
+    ids = [int(x) for x in form.getlist("id") if str(x).isdigit()]
+    triage.mark_applied(session, ids, form.get("undo") != "1")
+    return RedirectResponse("/negativliste", status_code=303)
 
 
 @app.get("/keywords", response_class=HTMLResponse)

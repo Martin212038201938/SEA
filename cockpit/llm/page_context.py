@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import jobs
-from ..analysis import anomalies, experiments as exp_mod, kpis
+from ..analysis import anomalies, experiments as exp_mod, kpis, triage
 from ..models import Alert, Experiment, Lead, Report, Suggestion
 from ..util import json_dumps, parse_date, yesterday
 from .tools import experiment_dict, suggestion_dict
@@ -95,7 +95,14 @@ def build(session: Session, path: str, query: dict[str, str] | None = None) -> d
         only_waste = query.get("waste") == "1"
         terms = kpis.search_terms(session, start, end, platform, float(query.get("min_cost") or 0), only_waste, 150, query.get("q") or None)
         title, desc = "Suchbegriffe", f"Suchbegriffe {start}–{end}" + (", nur Begriffe mit Kosten ohne Conversion" if only_waste else "") + (f", Filter „{query['q']}“" if query.get("q") else "") + ". Liste auf 150 Zeilen gekürzt, sortiert nach Kosten."
-        data = {"period": period, "filters": {"waste_only": only_waste, "q": query.get("q", ""), "min_cost": query.get("min_cost", "")}, "search_terms": terms}
+        decisions = triage.decisions_map(session, platform)
+        for t in terms:
+            d = decisions.get((t["platform"], t["search_term"]))
+            t["decision"] = d.decision if d else ""
+        data = {"period": period, "filters": {"waste_only": only_waste, "q": query.get("q", ""), "min_cost": query.get("min_cost", "")}, "triage_summary": triage.summary(session), "search_terms": terms}
+    elif path == "/negativliste":
+        title, desc = "Negativliste", "Offene und eingetragene Negativ-Kandidaten aus der Suchbegriffs-Triage, inkl. Prüfung, ob eingetragene Begriffe weiter ausliefern."
+        data = {"summary": triage.summary(session), "open": triage.negative_queue(session, platform), "applied": [d for d in triage.negative_queue(session, platform, True) if d["applied"]]}
     elif path == "/keywords":
         kws = kpis.keywords(session, start, end, platform, query.get("sort") or "cost", 150)
         title, desc = "Keywords", f"Keywords {start}–{end}, sortiert nach {query.get('sort') or 'cost'}, auf 150 Zeilen gekürzt."

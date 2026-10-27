@@ -67,3 +67,14 @@ def test_merge_duplicates():
     assert m["created_on"] == dt.date(2026, 10, 5) and m["status"] == "angebot" and m["url"] == "u2"
     assert m["kind"] == "erstgespraech" and m["channel"] == "google" and m["value"] == 7600.0 and m["name"] == "Jörg Schäfers"
     assert "+2 weitere Karten" in m["notes"]
+
+
+def test_click_id_lines():
+    desc = "E-Mail: a@b.de\nName: A B\nKanal: google\nKlick-ID: gclid=Cj0KCQ\nKampagne: copilot-schulung\nLandingpage: /copilot-schulung\n"
+    f = trello.parse_description(desc)
+    assert trello._click_id(f) == ("gclid", "Cj0KCQ")
+    assert trello._channel_for(f, [], "x", desc) == "google"
+    f2 = trello.parse_description("Klick-ID: msclkid=ABC\n")
+    assert trello._channel_for(f2, [], "x", "") == "microsoft"
+    f3 = trello.parse_description("Kanal: direkt\n")
+    assert trello._channel_for(f3, [], "x", "") == "direkt"

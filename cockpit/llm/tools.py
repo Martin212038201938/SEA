@@ -508,6 +508,30 @@ def add_lead(session: Session, user: str, **args):
     return {"id": lead.id, "ok": True}
 
 
+@tool(
+    "list_search_term_decisions",
+    "Triage-Stand der Suchbegriffe: offene und eingetragene Negativ-Kandidaten (Negativliste), behaltene und beobachtete Begriffe.",
+    {"type": "object", "properties": {"platform": {"type": "string", "enum": ["google", "microsoft", "all"]}, "include_applied": {"type": "boolean"}}, "additionalProperties": False},
+)
+def list_search_term_decisions(session: Session, user: str, **args):
+    from ..analysis import triage
+
+    return {"summary": triage.summary(session), "negative_queue": triage.negative_queue(session, args.get("platform") or "all", bool(args.get("include_applied")))}
+
+
+@tool(
+    "decide_search_term",
+    "Triage-Entscheidung für einen Suchbegriff speichern: ausschliessen (kommt auf die Negativliste), behalten oder beobachten. Nur nach ausdrücklicher Aussage des Nutzers, nie auf eigene Initiative.",
+    {"type": "object", "properties": {"search_term": {"type": "string"}, "decision": {"type": "string", "enum": ["ausschliessen", "behalten", "beobachten"]}, "platform": {"type": "string", "enum": ["google", "microsoft"]}, "negative_match": {"type": "string", "enum": ["phrase", "exact"]}, "note": {"type": "string"}}, "required": ["search_term", "decision"], "additionalProperties": False},
+    writes=True,
+)
+def decide_search_term(session: Session, user: str, **args):
+    from ..analysis import triage
+
+    row = triage.decide(session, user, args.get("platform") or "google", args["search_term"], args["decision"], args.get("negative_match") or "phrase", args.get("note") or "")
+    return triage.row_dict(row)
+
+
 def openai_tools(include_writes: bool = True) -> list[dict[str, Any]]:
     return [
         {"type": "function", "name": t.name, "description": t.description, "parameters": t.parameters}

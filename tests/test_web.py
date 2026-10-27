@@ -31,7 +31,7 @@ def test_login_required(client):
 
 def test_pages_render(client):
     _login(client)
-    for path in ["/", "/hilfe", "/organisch", "/vorschlaege", "/experimente", "/suchbegriffe", "/keywords", "/anzeigen", "/leads", "/alerts", "/reports", "/chat", "/admin", "/api/timeseries?days=30"]:
+    for path in ["/", "/hilfe", "/organisch", "/negativliste", "/vorschlaege", "/experimente", "/suchbegriffe", "/keywords", "/anzeigen", "/leads", "/alerts", "/reports", "/chat", "/admin", "/api/timeseries?days=30"]:
         r = client.get(path)
         assert r.status_code == 200, path
 
@@ -139,3 +139,26 @@ def test_banter_quota(client, monkeypatch):
     assert "[[MUTTERWITZ]]" not in d["answer"]
     client.post("/api/chat", json={"question": "Nochmal?", "thread": "panel-chris-b"})
     assert "bereits verbraucht" in seen[1]
+
+
+def test_search_term_triage(client):
+    from cockpit.db import session_scope
+    from cockpit.analysis import triage
+
+    _login(client)
+    r = client.post("/api/suchbegriffe/entscheidung", json={"platform": "google", "search_term": "ccna kurs", "decision": "ausschliessen", "negative_match": "phrase"})
+    assert r.status_code == 200 and r.json()["decision"]["decision"] == "ausschliessen"
+    r = client.post("/api/suchbegriffe/entscheidung", json={"platform": "google", "search_term": "copilot kurs", "decision": "behalten"})
+    assert r.status_code == 200
+    assert client.post("/api/suchbegriffe/entscheidung", json={"platform": "google", "search_term": "x", "decision": "quatsch"}).status_code == 400
+    html = client.get("/negativliste").text
+    assert "ccna kurs" in html and "copilot kurs" not in html
+    with session_scope() as s:
+        assert triage.negative_list_text(s) == '"ccna kurs"'
+        ids = [d["id"] for d in triage.negative_queue(s)]
+    csrf = _csrf(client, "/negativliste")
+    r = client.post("/negativliste/angewendet", data={"csrf": csrf, "id": [str(i) for i in ids]}, follow_redirects=False)
+    assert r.status_code == 303
+    with session_scope() as s:
+        assert triage.negative_queue(s) == [] and triage.summary(s)["ausschliessen_angewendet"] == 1
+    assert client.get("/suchbegriffe?offen=0").status_code == 200
