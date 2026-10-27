@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Chat{% endblock %}
+{% block content %}
+<h1>Chat mit den Daten</h1>
+<p class="sub">Fragen in normaler Sprache; das Modell holt sich die Zahlen aus der Datenbank. Beispiele: „Warum ist der CPC in den letzten 14 Tagen gestiegen?“ · „Welche Suchbegriffe haben im Oktober Geld ohne Conversion gekostet?“ · „Ich habe Vorschlag 3 gestern umgesetzt.“ · „Vergleiche 1.7.–31.8. mit 2.9.–13.10.“</p>
+{% if not llm_ready %}<p class="err">OPENAI_API_KEY ist nicht gesetzt. Der Chat antwortet erst, wenn der Schlüssel in der .env hinterlegt ist.</p>{% endif %}
+<div class="chat" id="log">
+  {% for m in messages %}{% if m.role in ("user", "assistant") %}<div class="msg {{ m.role }}">{% if m.role == "assistant" %}{{ m.content | md | safe }}{% else %}{{ m.content }}{% endif %}</div>{% endif %}{% endfor %}
+</div>
+<form id="chatform" class="chat-form">
+  <textarea placeholder="Frage eingeben … (Strg+Enter sendet)" autofocus></textarea>
+  <button class="btn" type="submit">Senden</button>
+</form>
+<p class="small muted">Thread: {{ thread }} · <a href="/chat?thread={{ user }}-{{ range(1000, 9999) | random }}">Neuen Thread starten</a></p>
+<script>document.addEventListener("DOMContentLoaded", () => seaChat("chatform", "log", "{{ thread }}"));</script>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_macros.html" import period_nav, tiles, delta %}
+{% block title %}Übersicht{% endblock %}
+{% block content %}
+<h1>Übersicht</h1>
+<p class="sub">{{ start.strftime('%d.%m.%Y') }} bis {{ end.strftime('%d.%m.%Y') }} · Datenstand {{ last_data.strftime('%d.%m.%Y') if last_data else 'keine Daten' }} · letzter Nightly-Job {{ status.last.nightly.when or 'nie' }} ({{ status.last.nightly.status }})</p>
+{{ period_nav(days, platform, "/") }}
+{{ tiles(cmp) }}
+
+<div class="grid two" style="margin-top:1rem">
+  <div class="card">
+    <h2>Verlauf (90 Tage)</h2>
+    <canvas id="ts" height="110"></canvas>
+    <script>document.addEventListener("DOMContentLoaded", () => seaLoadTimeseries("ts", { days: 90, platform: "{{ platform }}" }));</script>
+  </div>
+  <div class="card">
+    <h2>Offene Vorschläge</h2>
+    {% if suggestions %}
+    <table>
+      {% for s in suggestions %}
+      <tr><td><span class="badge p{{ s.priority }}">P{{ s.priority }}</span></td><td><a href="/vorschlaege/{{ s.id }}">{{ s.title }}</a><div class="small muted">{{ s.category }} · {{ s.effort or '' }} · {{ s.created_at.strftime('%d.%m.') }}</div></td></tr>
+      {% endfor %}
+    </table>
+    <p class="small"><a href="/vorschlaege">Alle Vorschläge</a></p>
+    {% else %}<p class="muted">Keine offenen Vorschläge. Der nächste Wochenreport erzeugt neue.</p>{% endif %}
+
+    <h2>Auffälligkeiten</h2>
+    {% if alerts %}
+    {% for a in alerts %}<div class="alert-row"><span class="badge {{ a.severity }}">{{ a.severity }}</span><div class="body"><strong>{{ a.title }}</strong><div class="small muted">{{ a.date.strftime('%d.%m.') }} · {{ a.message[:140] }}{% if a.message|length > 140 %}…{% endif %}</div></div></div>{% endfor %}
+    <p class="small"><a href="/alerts">Alle Alerts</a></p>
+    {% else %}<p class="muted">Keine unbestätigten Auffälligkeiten.</p>{% endif %}
+  </div>
+</div>
+
+<div class="grid two" style="margin-top:1rem">
+  <div class="card">
+    <h2>Kampagnen</h2>
+    <table>
+      <tr><th>Kampagne</th><th>Strategie</th><th class="num">Kosten</th><th class="num">Klicks</th><th class="num">CPC</th><th class="num">Conv.</th><th class="num">CPL</th></tr>
+      {% for c in campaigns %}
+      <tr><td>{{ c.campaign_name }}<div class="small muted">{{ c.platform }} · {{ c.status }} · Budget {{ c.budget_amount | eur }}/Tag{% if c.end_date and c.end_date != '2037-12-30' %} · Ende {{ c.end_date }}{% endif %}</div></td><td class="small">{{ c.bidding_strategy }}</td><td class="num">{{ c.cost | eur }}</td><td class="num">{{ c.clicks }}</td><td class="num">{{ c.avg_cpc | eur }}</td><td class="num">{{ c.conversions | num(1) }}</td><td class="num">{{ c.cpl | eur }}</td></tr>
+      {% else %}<tr><td colspan="7" class="muted">Noch keine Kampagnendaten. Admin → Nightly-Job starten oder Demo-Daten einspielen.</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div class="card">
+    <h2>Leads im Zeitraum (Wahrheitsebene)</h2>
+    <div class="grid tiles">
+      <div class="tile"><div class="label">Leads gesamt</div><div class="value">{{ leads.total }}</div></div>
+      <div class="tile"><div class="label">davon Google</div><div class="value">{{ leads.by_channel.google.leads if leads.by_channel.google else 0 }}</div></div>
+      <div class="tile"><div class="label">Kosten je Google-Lead</div><div class="value">{% if leads.by_channel.google and leads.by_channel.google.leads %}{{ (cmp.current.cost / leads.by_channel.google.leads) | eur }}{% else %}–{% endif %}</div><div class="delta muted">Ads-Kosten / echte Leads mit Kanal Google</div></div>
+      <div class="tile"><div class="label">Gewonnen</div><div class="value">{{ leads.by_channel.values() | map(attribute='gewonnen') | sum }}</div></div>
+    </div>
+    <p class="small muted" style="margin-top:.6rem">Ads-Conversions: {{ cmp.current.conversions | num(1) }} · Leads aus Trello/Bookings/manuell: {{ leads.total }}. Weicht das stark ab, stimmt das Tracking nicht.</p>
+    <h3>Teure Suchbegriffe ohne Conversion</h3>
+    <table>
+      {% for t in wasted %}<tr><td>{{ t.search_term }}<div class="small muted">{{ t.matched_keyword }} ({{ t.match_type }})</div></td><td class="num">{{ t.cost | eur }}</td><td class="num">{{ t.clicks }} Klicks</td></tr>{% else %}<tr><td class="muted">Keine.</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+
+{% if experiments %}
+<h2>Laufende Experimente</h2>
+<div class="grid two">
+{% for x in experiments %}
+  <div class="card">
+    <h3><a href="/experimente/{{ x.experiment.id }}">{{ x.experiment.name }}</a></h3>
+    <p class="small muted">Test seit {{ x.windows.test_start }} · Basis {{ x.windows.base_start }} bis {{ x.windows.base_end }}</p>
+    <div class="grid tiles">
+      <div class="tile"><div class="label">CPL vorher → nachher</div><div class="value" style="font-size:1.1rem">{{ x.before.cpl | eur }} → {{ x.after.cpl | eur }}</div><div class="delta">{{ delta(x.deltas.cpl, True) }}</div></div>
+      <div class="tile"><div class="label">CVR vorher → nachher</div><div class="value" style="font-size:1.1rem">{{ x.before.cvr | pct(2) }} → {{ x.after.cvr | pct(2) }}</div><div class="delta">{{ delta(x.deltas.cvr) }}</div></div>
+    </div>
+    <p class="small">{{ x.verdict }}</p>
+  </div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

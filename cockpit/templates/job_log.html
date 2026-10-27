@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Job-Log{% endblock %}
+{% block content %}
+<p class="small"><a href="/admin">← Admin</a></p>
+<h1>{{ run.job }} · {{ run.started_at.strftime('%d.%m.%Y %H:%M') }} · {{ run.status }}</h1>
+<pre>{{ run.log }}</pre>
+{% endblock %}

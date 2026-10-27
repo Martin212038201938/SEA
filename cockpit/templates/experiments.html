@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_macros.html" import delta %}
+{% block title %}Experimente{% endblock %}
+{% block content %}
+<h1>Experimente</h1>
+<p class="sub">Ein Experiment ist eine bewusste Änderung mit Hypothese und Startdatum. Das Cockpit vergleicht das Testfenster mit einem gleich langen Basisfenster davor und zeigt Störfaktoren aus dem Änderungsverlauf.</p>
+
+<details class="card" open style="margin-bottom:1rem"><summary>Neues Experiment anlegen</summary>
+<form method="post" action="/experimente/neu" style="margin-top:.6rem">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="form-row">
+    <div style="flex:2 1 260px"><label>Name</label><input name="name" required style="width:100%" placeholder="z. B. Negativliste V2 aktiv"></div>
+    <div><label>Start</label><input type="date" name="start_date" required></div>
+    <div><label>Ende (optional)</label><input type="date" name="end_date"></div>
+    <div><label>Plattform</label><select name="platform"><option value="google">Google</option><option value="microsoft">Microsoft</option><option value="all">Alle</option></select></div>
+    <div><label>Basisfenster (Tage, 0 = gleich lang)</label><input type="number" name="baseline_days" value="0" min="0"></div>
+  </div>
+  <label>Hypothese</label><textarea name="hypothesis" placeholder="Was soll sich ändern und warum?"></textarea>
+  <label>Betroffene Kampagnen (leer = alle)</label>
+  <div class="small">{% for c in campaigns %}<label style="display:inline-block;margin-right:1rem"><input type="checkbox" name="campaign_ids" value="{{ c.campaign_id }}"> {{ c.campaign_name }} ({{ c.platform }})</label>{% endfor %}</div>
+  <button class="btn" type="submit" style="margin-top:.6rem">Anlegen</button>
+</form></details>
+
+<div class="grid two">
+{% for x in cards %}
+  <div class="card">
+    <h3><a href="/experimente/{{ x.experiment.id }}">{{ x.experiment.name }}</a> <span class="badge {{ x.experiment.status }}">{{ x.experiment.status }}</span></h3>
+    <p class="small muted">Test {{ x.windows.test_start }} bis {{ x.windows.test_end }} · Basis {{ x.windows.base_start }} bis {{ x.windows.base_end }}</p>
+    <p class="small">{{ x.experiment.hypothesis }}</p>
+    <div class="grid tiles">
+      <div class="tile"><div class="label">Kosten</div><div class="value" style="font-size:1rem">{{ x.before.cost | eur }} → {{ x.after.cost | eur }}</div></div>
+      <div class="tile"><div class="label">Ø CPC</div><div class="value" style="font-size:1rem">{{ x.before.avg_cpc | eur }} → {{ x.after.avg_cpc | eur }}</div><div class="delta">{{ delta(x.deltas.avg_cpc, True) }}</div></div>
+      <div class="tile"><div class="label">CVR</div><div class="value" style="font-size:1rem">{{ x.before.cvr | pct(2) }} → {{ x.after.cvr | pct(2) }}</div><div class="delta">{{ delta(x.deltas.cvr) }}</div></div>
+      <div class="tile"><div class="label">CPL</div><div class="value" style="font-size:1rem">{{ x.before.cpl | eur }} → {{ x.after.cpl | eur }}</div><div class="delta">{{ delta(x.deltas.cpl, True) }}</div></div>
+    </div>
+    <p class="small" style="margin-bottom:0">{{ x.verdict }}</p>
+  </div>
+{% else %}<p class="muted">Noch keine Experimente.</p>{% endfor %}
+</div>
+{% endblock %}

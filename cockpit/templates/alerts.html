@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Alerts{% endblock %}
+{% block content %}
+<h1>Auffälligkeiten</h1>
+<p class="sub">Regelbasiert, täglich nach dem Datenabzug. Schwellen unter Admin anpassbar. Bestätigte Alerts verschwinden aus der Übersicht, bleiben aber gespeichert.</p>
+<div class="card">
+{% for a in alerts %}
+<div class="alert-row">
+  <span class="badge {{ a.severity }}">{{ a.severity }}</span>
+  <div class="body"><strong>{{ a.title }}</strong> <span class="small muted">{{ a.date.strftime('%d.%m.%Y') }} · {{ a.rule }} · {{ a.platform }}{% if a.sent_at %} · gesendet{% endif %}</span><div class="small">{{ a.message }}</div></div>
+  {% if not a.acknowledged %}<form method="post" action="/alerts/{{ a.id }}/ack"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small secondary" type="submit">Gesehen</button></form>{% else %}<span class="small muted">bestätigt</span>{% endif %}
+</div>
+{% else %}<p class="muted">Keine Alerts.</p>{% endfor %}
+</div>
+{% endblock %}

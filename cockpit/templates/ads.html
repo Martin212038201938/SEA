@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_macros.html" import period_nav %}
+{% block title %}Anzeigen{% endblock %}
+{% block content %}
+<h1>Anzeigen, Auktion, Änderungen</h1>
+{{ period_nav(days, platform, "/anzeigen") }}
+<div class="card">
+<h2>Anzeigen</h2>
+<table>
+  <tr><th>Anzeige</th><th>Stärke</th><th>Ziel-URL</th><th class="num">Impr.</th><th class="num">Klicks</th><th class="num">CTR</th><th class="num">Kosten</th><th class="num">Conv.</th><th class="num">CPL</th></tr>
+  {% for a in ads %}
+  <tr><td class="small"><strong>{{ a.ad_type }}</strong> · {{ a.status }}<div class="muted">{{ a.headlines | join(' | ') }}</div><div class="muted">{{ a.descriptions | join(' | ') }}</div></td><td class="small">{{ a.ad_strength }}</td><td class="small">{{ a.final_url }}</td><td class="num">{{ a.impressions }}</td><td class="num">{{ a.clicks }}</td><td class="num">{{ a.ctr | pct }}</td><td class="num">{{ a.cost | eur }}</td><td class="num">{{ a.conversions | num(1) }}</td><td class="num">{{ a.cpl | eur }}</td></tr>
+  {% else %}<tr><td colspan="9" class="muted">Keine Anzeigendaten.</td></tr>{% endfor %}
+</table>
+</div>
+<div class="grid two" style="margin-top:1rem">
+  <div class="card">
+    <h2>Auktionsdaten</h2>
+    {% if auction %}<p class="small muted">{{ auction[0].period }}</p>
+    <table><tr><th>Domain</th><th class="num">Impr.-Anteil</th><th class="num">Überschneidung</th><th class="num">Outranking</th><th class="num">Oben</th></tr>
+    {% for r in auction %}<tr><td>{{ r.domain }}</td><td class="num">{{ r.impression_share | pct(0) }}</td><td class="num">{{ r.overlap_rate | pct(0) }}</td><td class="num">{{ r.outranking_share | pct(0) }}</td><td class="num">{{ r.top_of_page_rate | pct(0) }}</td></tr>{% endfor %}</table>
+    {% else %}<p class="muted">Keine Auktionsdaten erfasst.</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Änderungsverlauf</h2>
+    <table>{% for c in changes %}<tr><td class="small" style="white-space:nowrap">{{ c.when }}</td><td class="small">{{ c.summary }}<div class="muted">{{ c.resource_type }} · {{ c.user }} · {{ c.client }}</div></td></tr>{% else %}<tr><td class="muted">Keine Änderungen im Zeitraum.</td></tr>{% endfor %}</table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}SEA-Cockpit{% endblock %} · Copilotenschule</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+{% if user %}
+<header class="topbar">
+  <a class="brand" href="/"><span class="stripes"></span> SEA-Cockpit</a>
+  <nav>
+    {% for href, label in [("/", "Übersicht"), ("/vorschlaege", "Vorschläge"), ("/experimente", "Experimente"), ("/suchbegriffe", "Suchbegriffe"), ("/keywords", "Keywords"), ("/anzeigen", "Anzeigen"), ("/leads", "Leads"), ("/alerts", "Alerts"), ("/reports", "Reports"), ("/chat", "Chat"), ("/admin", "Admin")] %}
+      <a href="{{ href }}" class="{{ 'active' if (path == href or (href != '/' and path.startswith(href))) else '' }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+  <div class="right">
+    <span>{{ user }}</span>
+    <form method="post" action="/logout"><button class="btn secondary small" type="submit">Abmelden</button></form>
+  </div>
+</header>
+{% if demo %}<div class="demo-banner">Demo-Modus: Die angezeigten Zahlen sind synthetisch. Sobald der Google-Ads-Zugang steht, DEMO_MODE=0 setzen und „purge-demo“ ausführen.</div>{% endif %}
+{% endif %}
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

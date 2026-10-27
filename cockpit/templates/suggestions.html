@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Vorschläge{% endblock %}
+{% block content %}
+<h1>Vorschläge</h1>
+<p class="sub">Das Cockpit schlägt vor, Chris setzt um und meldet es zurück. Jede Umsetzung wird zum Experiment, damit die Wirkung messbar bleibt.</p>
+<div class="period">
+  {% for st, l in [("offen","Offen"),("umgesetzt","Umgesetzt"),("später","Später"),("verworfen","Verworfen"),("alle","Alle")] %}
+  <a href="/vorschlaege?status={{ st }}" class="{{ 'active' if st == status else '' }}">{{ l }}{% if counts.get(st) %} ({{ counts[st] }}){% endif %}</a>
+  {% endfor %}
+</div>
+<div class="card">
+<table>
+  <tr><th>Prio</th><th>Vorschlag</th><th>Kategorie</th><th>Aufwand</th><th>Sicherheit</th><th>Quelle</th><th>Status</th></tr>
+  {% for s in suggestions %}
+  <tr>
+    <td><span class="badge p{{ s.priority }}">P{{ s.priority }}</span></td>
+    <td><a href="/vorschlaege/{{ s.id }}"><strong>{{ s.title }}</strong></a><div class="small muted">{{ s.rationale[:160] }}{% if s.rationale|length > 160 %}…{% endif %}</div></td>
+    <td class="small">{{ s.category }}</td><td class="small">{{ s.effort }}</td><td class="small">{{ s.confidence }}</td>
+    <td class="small">{{ s.source }} · {{ s.created_at.strftime('%d.%m.%Y') }}</td>
+    <td><span class="badge {{ s.status }}">{{ s.status }}</span></td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="muted">Keine Vorschläge mit diesem Status.</td></tr>{% endfor %}
+</table>
+</div>
+
+<details style="margin-top:1rem"><summary>Vorschlag manuell anlegen</summary>
+<form method="post" action="/vorschlaege/neu" class="card" style="margin-top:.6rem">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="form-row"><div><label>Titel</label><input name="title" required style="width:100%"></div><div><label>Kategorie</label><select name="category">{% for c in ["negativ-keywords","keywords","anzeigen","gebotsstrategie","budget","landingpage","conversion-tracking","zeitplan","standort","struktur","bing","sonstiges"] %}<option>{{ c }}</option>{% endfor %}</select></div><div><label>Priorität</label><select name="priority"><option value="1">1 hoch</option><option value="2" selected>2 mittel</option><option value="3">3 niedrig</option></select></div></div>
+  <label>Begründung</label><textarea name="rationale"></textarea>
+  <label>Erwarteter Effekt</label><textarea name="expected_effect"></textarea>
+  <label>Schritte (eine Zeile je Schritt)</label><textarea name="steps"></textarea>
+  <button class="btn" type="submit">Anlegen</button>
+</form></details>
+{% endblock %}

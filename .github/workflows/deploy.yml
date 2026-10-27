@@ -1,0 +1,30 @@
+name: Deploy auf Alwaysdata
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy per SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ssh-y-b.alwaysdata.net
+          username: y-b
+          key: ${{ secrets.ALWAYSDATA_SSH_KEY }}
+          script: |
+            cd ~/sea-cockpit && bash scripts/alwaysdata_deploy.sh

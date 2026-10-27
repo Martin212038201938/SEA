@@ -1,0 +1,41 @@
+{% macro period_nav(days, platform, base) -%}
+<div class="period">
+  <span class="muted">Zeitraum:</span>
+  {% for d in [7, 14, 28, 90, 180] %}<a href="{{ base }}?days={{ d }}&platform={{ platform }}" class="{{ 'active' if d == days else '' }}">{{ d }} Tage</a>{% endfor %}
+  <span class="muted" style="margin-left:.8rem">Plattform:</span>
+  {% for p, l in [("all", "Alle"), ("google", "Google"), ("microsoft", "Microsoft")] %}<a href="{{ base }}?days={{ days }}&platform={{ p }}" class="{{ 'active' if p == platform else '' }}">{{ l }}</a>{% endfor %}
+</div>
+{%- endmacro %}
+
+{% macro delta(v, invert=False) -%}
+{% if v is none %}<span class="delta flat">–</span>{% else %}
+{% set good = (v < 0) if invert else (v > 0) %}
+<span class="delta {{ 'up' if good else ('down' if v != 0 else 'flat') }}">{{ '+' if v > 0 else '' }}{{ (v * 100) | round(0) | int }} %</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro tiles(cmp) -%}
+{% set c = cmp.current %}{% set d = cmp.deltas %}
+<div class="grid tiles">
+  <div class="tile"><div class="label">Kosten</div><div class="value">{{ c.cost | eur }}</div><div class="delta">{{ delta(d.cost, True) }} <span class="muted">vs. Vorperiode</span></div></div>
+  <div class="tile"><div class="label">Klicks</div><div class="value">{{ c.clicks | num }}</div><div class="delta">{{ delta(d.clicks) }}</div></div>
+  <div class="tile"><div class="label">Impressionen</div><div class="value">{{ c.impressions | num }}</div><div class="delta">{{ delta(d.impressions) }}</div></div>
+  <div class="tile"><div class="label">CTR</div><div class="value">{{ c.ctr | pct }}</div><div class="delta">{{ delta(d.ctr) }}</div></div>
+  <div class="tile"><div class="label">Ø CPC</div><div class="value">{{ c.avg_cpc | eur }}</div><div class="delta">{{ delta(d.avg_cpc, True) }}</div></div>
+  <div class="tile"><div class="label">Conversions</div><div class="value">{{ c.conversions | num(1) }}</div><div class="delta">{{ delta(d.conversions) }}</div></div>
+  <div class="tile"><div class="label">CPL</div><div class="value">{{ c.cpl | eur }}</div><div class="delta">{{ delta(d.cpl, True) }} <span class="muted">Ziel {{ settings.target_cpl | eur }}</span></div></div>
+  <div class="tile"><div class="label">Impression Share</div><div class="value">{{ c.search_impression_share | pct(0) }}</div><div class="delta muted">Budget-Verlust {{ c.lost_is_budget | pct(0) }} · Rang {{ c.lost_is_rank | pct(0) }}</div></div>
+</div>
+{%- endmacro %}
+
+{% macro metric_table(before, after, deltas) -%}
+<table>
+  <tr><th></th><th class="num">Vorher</th><th class="num">Nachher</th><th class="num">Δ</th></tr>
+  {% for key, label, kind, inv in [("cost","Kosten","eur",True),("clicks","Klicks","num",False),("impressions","Impressionen","num",False),("ctr","CTR","pct",False),("avg_cpc","Ø CPC","eur",True),("conversions","Conversions","num1",False),("cvr","Conversion-Rate","pct",False),("cpl","CPL","eur",True)] %}
+  <tr><td>{{ label }}</td>
+    <td class="num">{% if kind == "eur" %}{{ before[key] | eur }}{% elif kind == "pct" %}{{ before[key] | pct(2) }}{% elif kind == "num1" %}{{ before[key] | num(1) }}{% else %}{{ before[key] | num }}{% endif %}</td>
+    <td class="num">{% if kind == "eur" %}{{ after[key] | eur }}{% elif kind == "pct" %}{{ after[key] | pct(2) }}{% elif kind == "num1" %}{{ after[key] | num(1) }}{% else %}{{ after[key] | num }}{% endif %}</td>
+    <td class="num">{{ delta(deltas[key], inv) }}</td></tr>
+  {% endfor %}
+</table>
+{%- endmacro %}

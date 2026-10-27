@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ r.title }}{% endblock %}
+{% block content %}
+<p class="small"><a href="/reports">← Reports</a></p>
+<h1>{{ r.title }}</h1>
+<p class="sub">Erstellt {{ r.created_at.strftime('%d.%m.%Y %H:%M') }} · Modell {{ r.model }}</p>
+<div class="grid two">
+  <div class="card report-md">{{ r.content_md | md | safe }}</div>
+  <div class="card">
+    <h2>Vorschläge aus diesem Report</h2>
+    {% for s in suggestions %}
+    <div style="padding:.5rem 0;border-bottom:1px solid var(--line)">
+      <span class="badge p{{ s.priority }}">P{{ s.priority }}</span> <a href="/vorschlaege/{{ s.id }}"><strong>{{ s.title }}</strong></a> <span class="badge {{ s.status }}">{{ s.status }}</span>
+      <div class="small muted">{{ s.category }} · {{ s.effort }} · {{ s.confidence }}</div>
+      <div class="small">{{ s.rationale }}</div>
+    </div>
+    {% else %}<p class="muted">Keine Vorschläge gespeichert.</p>{% endfor %}
+  </div>
+</div>
+{% endblock %}

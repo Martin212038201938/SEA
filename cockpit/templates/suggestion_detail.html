@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "_macros.html" import metric_table %}
+{% block title %}Vorschlag #{{ s.id }}{% endblock %}
+{% block content %}
+<p class="small"><a href="/vorschlaege">← Vorschläge</a></p>
+<h1><span class="badge p{{ s.priority }}">P{{ s.priority }}</span> {{ s.title }}</h1>
+<p class="sub">{{ s.category }} · Aufwand {{ s.effort or 'offen' }} · Sicherheit {{ s.confidence }} · Quelle {{ s.source }} vom {{ s.created_at.strftime('%d.%m.%Y') }}{% if report %} · <a href="/reports/{{ report.id }}">{{ report.title }}</a>{% endif %} · <span class="badge {{ s.status }}">{{ s.status }}</span></p>
+
+<div class="grid two">
+  <div class="card">
+    <h2>Warum</h2><p>{{ s.rationale }}</p>
+    <h2>Erwarteter Effekt</h2><p>{{ s.expected_effect }}</p>
+    {% if s.evidence and s.evidence.text %}<h3>Belege</h3><p class="small">{{ s.evidence.text }}</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Schritte</h2>
+    <ol class="steps">{% for st in s.steps %}<li>{{ st }}</li>{% endfor %}</ol>
+    <h3>Status setzen</h3>
+    <form method="post" action="/vorschlaege/{{ s.id }}/status">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="form-row">
+        <div><label>Status</label><select name="status">{% for st in ["offen","umgesetzt","später","verworfen"] %}<option {{ 'selected' if st == s.status else '' }}>{{ st }}</option>{% endfor %}</select></div>
+        <div><label>Umgesetzt am</label><input type="date" name="implemented_on"></div>
+      </div>
+      <label>Notiz</label><textarea name="note" placeholder="z. B. nur Teil 1 und 2 umgesetzt">{{ s.status_note }}</textarea>
+      <button class="btn" type="submit">Speichern</button>
+    </form>
+    {% if s.status == 'umgesetzt' and s.verification %}
+    <h3>Abgleich mit Änderungsverlauf</h3>
+    <p class="small">Fenster {{ s.verification.checked_window }}: {% if s.verification.found %}passende Änderung gefunden.{% else %}noch keine passende Änderung gefunden. {{ s.verification.note }}{% endif %}</p>
+    {% for m in s.verification.matching_changes %}<div class="small muted">{{ m.when }} · {{ m.summary }} · {{ m.user }}</div>{% endfor %}
+    {% endif %}
+  </div>
+</div>
+
+{% if exp_cmp %}
+<div class="card" style="margin-top:1rem">
+  <h2>Wirkung seit Umsetzung · <a href="/experimente/{{ exp.id }}">{{ exp.name }}</a></h2>
+  <p class="small muted">Basis {{ exp_cmp.windows.base_start }} bis {{ exp_cmp.windows.base_end }} · Test {{ exp_cmp.windows.test_start }} bis {{ exp_cmp.windows.test_end }}</p>
+  {{ metric_table(exp_cmp.before, exp_cmp.after, exp_cmp.deltas) }}
+  <p class="small">{{ exp_cmp.verdict }}</p>
+</div>
+{% endif %}
+{% endblock %}

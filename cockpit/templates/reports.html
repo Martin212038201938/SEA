@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<h1>Reports</h1>
+<p class="sub">Wochenreport montags, Monatsreport am 1. des Monats. Versand per Teams und E-Mail, wenn konfiguriert.</p>
+<div class="card">
+<table>
+  <tr><th>Report</th><th>Zeitraum</th><th>Modell</th><th>Erstellt</th><th>Versand</th></tr>
+  {% for r in reports %}<tr><td><a href="/reports/{{ r.id }}">{{ r.title }}</a></td><td class="small">{{ r.period_start }} bis {{ r.period_end }}</td><td class="small">{{ r.model }}</td><td class="small">{{ r.created_at.strftime('%d.%m.%Y %H:%M') }}</td><td class="small">{{ 'ja' if r.sent_at else 'nein' }}</td></tr>
+  {% else %}<tr><td colspan="5" class="muted">Noch keine Reports. Unter Admin lässt sich ein Wochenreport sofort erzeugen.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

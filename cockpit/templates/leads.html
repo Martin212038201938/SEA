@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Leads{% endblock %}
+{% block content %}
+<h1>Leads</h1>
+<p class="sub">{{ start.strftime('%d.%m.%Y') }} bis {{ end.strftime('%d.%m.%Y') }} · Quellen: Trello (Kontaktformular), Bookings-Webhook (Erstgespräche), manuell. Status und Kanal lassen sich hier korrigieren; Trello-Karten werden beim nächsten Abzug wieder aus Trello übernommen.</p>
+<div class="period">{% for d in [28, 90, 180, 365] %}<a href="/leads?days={{ d }}" class="{{ 'active' if d == days else '' }}">{{ d }} Tage</a>{% endfor %}</div>
+<div class="grid tiles" style="margin-bottom:1rem">
+  <div class="tile"><div class="label">Leads</div><div class="value">{{ summary.total }}</div></div>
+  <div class="tile"><div class="label">Ads-Kosten im Zeitraum</div><div class="value">{{ ov.cost | eur }}</div></div>
+  <div class="tile"><div class="label">Ads-Conversions</div><div class="value">{{ ov.conversions | num(1) }}</div></div>
+  {% for ch, b in summary.by_channel.items() %}<div class="tile"><div class="label">{{ ch }}</div><div class="value">{{ b.leads }}</div><div class="delta muted">{{ b.gewonnen }} gewonnen · {{ b.revenue | eur }} Erlös</div></div>{% endfor %}
+</div>
+<div class="card">
+<table>
+  <tr><th>Datum</th><th>Unternehmen</th><th>Art</th><th>Quelle</th><th>Status / Kanal / Werte</th></tr>
+  {% for l in leads %}
+  <tr><td class="small">{{ l.created_on.strftime('%d.%m.%Y') }}</td><td>{{ l.company or l.name }}{% if l.url %} <a class="small" href="{{ l.url }}" target="_blank" rel="noopener">Trello</a>{% endif %}<div class="small muted">{{ l.notes[:80] }}</div></td><td class="small">{{ l.kind }}</td><td class="small">{{ l.source }}</td>
+    <td><form method="post" action="/leads/{{ l.id }}" class="form-row" style="margin:0"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <div style="flex:0 1 130px"><select name="status">{% for st in ["neu","kontaktiert","angebot","gewonnen","verloren"] %}<option {{ 'selected' if st == l.status else '' }}>{{ st }}</option>{% endfor %}</select></div>
+      <div style="flex:0 1 130px"><select name="channel">{% for ch in ["unbekannt","google","microsoft","organisch","empfehlung","linkedin","seminarmarkt","bestandskunde"] %}<option {{ 'selected' if ch == l.channel else '' }}>{{ ch }}</option>{% endfor %}</select></div>
+      <div style="flex:0 1 110px"><input name="value" type="number" step="1" value="{{ l.value | int }}" title="Auftragswert"></div>
+      <div style="flex:0 1 110px"><input name="revenue" type="number" step="1" value="{{ l.revenue | int }}" title="Erlös"></div>
+      <div style="flex:0 0 auto"><button class="btn small secondary" type="submit">Speichern</button></div></form></td></tr>
+  {% else %}<tr><td colspan="5" class="muted">Keine Leads im Zeitraum.</td></tr>{% endfor %}
+</table>
+</div>
+<details style="margin-top:1rem"><summary>Lead manuell erfassen</summary>
+<form method="post" action="/leads/neu" class="card" style="margin-top:.6rem">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="form-row">
+    <div><label>Datum</label><input type="date" name="date"></div>
+    <div style="flex:2 1 220px"><label>Unternehmen</label><input name="company" required style="width:100%"></div>
+    <div><label>Ansprechpartner</label><input name="name"></div>
+    <div><label>Kanal</label><select name="channel">{% for ch in ["unbekannt","google","microsoft","organisch","empfehlung","linkedin","seminarmarkt","bestandskunde"] %}<option>{{ ch }}</option>{% endfor %}</select></div>
+    <div><label>Art</label><select name="kind"><option value="erstgespraech">Erstgespräch</option><option value="kontaktformular">Kontaktformular</option><option value="anruf">Anruf</option><option value="sonstiges">Sonstiges</option></select></div>
+    <div><label>Auftragswert €</label><input type="number" name="value" value="0"></div>
+  </div>
+  <label>Notiz</label><textarea name="notes"></textarea>
+  <button class="btn" type="submit">Anlegen</button>
+</form></details>
+{% endblock %}
