@@ -100,18 +100,26 @@ def _anthropic_run_with_tools(system, messages, tools, executor, model, max_roun
 
 def _anthropic_structured(system, user_content, schema, name, model) -> dict[str, Any]:
     client = _anthropic()
-    tool = {"name": name, "description": "Liefert das Ergebnis im vorgegebenen Format.", "input_schema": schema}
-    resp = client.messages.create(
-        model=model,
-        max_tokens=8000,
-        system=system,
-        messages=[{"role": "user", "content": user_content}],
-        tools=[tool],
-        tool_choice={"type": "tool", "name": name},
+    tool = {"name": name, "description": "Liefert das Ergebnis im vorgegebenen Format. Genau einmal aufrufen.", "input_schema": schema}
+    instruction = (
+        f"\n\nAntworte ausschließlich durch einen Aufruf des Werkzeugs `{name}` mit vollständig gefüllten Feldern. "
+        "Kein Text außerhalb des Werkzeugaufrufs."
     )
+    kwargs: dict[str, Any] = dict(model=model, max_tokens=8000, system=system + instruction, messages=[{"role": "user", "content": user_content}], tools=[tool])
+    try:
+        resp = client.messages.create(tool_choice={"type": "tool", "name": name}, **kwargs)
+    except Exception as exc:  # manche Modelle erlauben kein erzwungenes Werkzeug
+        if "tool_choice" not in str(exc):
+            raise
+        resp = client.messages.create(tool_choice={"type": "auto"}, **kwargs)
     for b in resp.content:
         if getattr(b, "type", "") == "tool_use" and b.name == name:
             return dict(b.input)
+    # Fallback: JSON im Text
+    text = _anthropic_text(resp).strip()
+    start, end = text.find("{"), text.rfind("}")
+    if start >= 0 and end > start:
+        return json.loads(text[start : end + 1])
     raise RuntimeError("Modell hat kein strukturiertes Ergebnis geliefert")
 
 
