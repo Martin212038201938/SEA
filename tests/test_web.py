@@ -125,3 +125,17 @@ def test_ms_oauth_routes_and_env_writer(client, tmp_path):
     env.write_text("A=1\nMS_ADS_REFRESH_TOKEN=alt\n")
     update_env_file({"MS_ADS_REFRESH_TOKEN": "neu", "MS_ADS_ENABLED": "1"}, env)
     assert env.read_text() == "A=1\nMS_ADS_REFRESH_TOKEN=neu\nMS_ADS_ENABLED=1\n"
+
+
+def test_banter_quota(client, monkeypatch):
+    """Chris bekommt den Tonzusatz; der Mutterspruch wird gezählt und am selben Tag nicht mehr freigegeben."""
+    from cockpit.llm import client as llm
+
+    _login(client)
+    seen = []
+    monkeypatch.setattr(llm, "run_with_tools", lambda system, msgs, tools, executor, model=None, **kw: (seen.append(system) or ("Dickerchen, Budget rauf heißt nicht Leads rauf. [[MUTTERWITZ]]", [])))
+    d = client.post("/api/chat", json={"question": "Und?", "thread": "panel-chris-b"}).json()
+    assert "Dickerchen" in seen[0] and "noch kein Mutterspruch" in seen[0]
+    assert "[[MUTTERWITZ]]" not in d["answer"]
+    client.post("/api/chat", json={"question": "Nochmal?", "thread": "panel-chris-b"})
+    assert "bereits verbraucht" in seen[1]

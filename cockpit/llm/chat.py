@@ -14,7 +14,8 @@ from sqlalchemy.orm import Session
 
 from ..models import ChatMessage
 from . import choices, client as llm, page_context
-from .prompts import CHAT_SYSTEM
+from .prompts import BANTER, BANTER_QUOTA_OPEN, BANTER_QUOTA_USED, CHAT_SYSTEM
+from ..util import get_setting, set_setting, today_local
 from .tools import call, openai_tools
 
 log = logging.getLogger(__name__)
@@ -50,6 +51,10 @@ def ask(session: Session, user: str, thread_id: str, question: str, page: dict[s
     msgs = cleaned
 
     system = CHAT_SYSTEM
+    joke_key = f"banter_joke_{user}_{today_local().isoformat()}"
+    if user in BANTER:
+        used = get_setting(session, joke_key, "0") == "1"
+        system += BANTER[user].format(quota=BANTER_QUOTA_USED if used else BANTER_QUOTA_OPEN)
     context_title = None
     if page and page.get("path"):
         try:
@@ -77,6 +82,9 @@ def ask(session: Session, user: str, thread_id: str, question: str, page: dict[s
     except Exception as exc:
         log.exception("Chat fehlgeschlagen")
         answer, calls = f"Fehler bei der Anfrage an das Modell: {str(exc)[:300]}", []
+    if "[[MUTTERWITZ]]" in answer:
+        answer = answer.replace("[[MUTTERWITZ]]", "").rstrip()
+        set_setting(session, joke_key, "1")
     session.add(ChatMessage(thread_id=thread_id, user=user, role="assistant", content=answer))
     session.flush()
     clean, cards = choices.parse(answer)
