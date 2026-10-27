@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Microsoft Advertising{% endblock %}
+{% block content %}
+<h1>Microsoft Advertising verbinden</h1>
+<div class="card" style="max-width:720px">
+  {% if ok %}<p>Verbindung eingerichtet. {{ message }}</p>
+  <p class="small muted">Das Refresh-Token liegt in der .env auf dem Server. Der nächste Nachtlauf holt die Microsoft-Daten; sofort geht es über Admin → „Nachtlauf jetzt“ oder „Historie laden“.</p>
+  {% else %}<p class="err">{{ message }}</p>{% endif %}
+  <p><a class="btn secondary" href="/admin">Zurück zum Admin</a></p>
+</div>
+{% endblock %}

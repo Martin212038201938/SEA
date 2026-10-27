@@ -106,3 +106,21 @@ def pct_change(new: float | None, old: float | None) -> float | None:
 
 def json_dumps(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, default=str)
+
+
+def update_env_file(values: dict[str, str], path=None) -> None:
+    """Schlüssel in der .env setzen oder ergänzen (für Tokens, die die Anwendung selbst erhält)."""
+    import re
+    from pathlib import Path
+
+    from .config import BASE_DIR
+
+    p = Path(path) if path else BASE_DIR / ".env"
+    text = p.read_text(encoding="utf-8") if p.exists() else ""
+    for key, val in values.items():
+        line = f"{key}={val}"
+        if re.search(rf"^{re.escape(key)}=.*$", text, re.M):
+            text = re.sub(rf"^{re.escape(key)}=.*$", lambda m: line, text, flags=re.M)
+        else:
+            text = text.rstrip("\n") + f"\n{line}\n"
+    p.write_text(text, encoding="utf-8")

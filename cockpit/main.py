@@ -27,7 +27,7 @@ from .llm import chat as chat_mod
 from .llm.tools import call as tool_call, experiment_dict, suggestion_dict
 from .mcp_server import mcp_asgi_app, mcp_server, mount_path
 from .models import Alert, Experiment, JobRun, Lead, Report, Suggestion, utcnow
-from .util import eur, get_setting, get_setting_json, num, parse_date, pct, set_setting, today_local, yesterday
+from .util import eur, get_setting, get_setting_json, num, parse_date, pct, set_setting, today_local, update_env_file, yesterday
 
 log = logging.getLogger(__name__)
 BASE = Path(__file__).resolve().parent
@@ -384,6 +384,45 @@ def api_chat_history(request: Request, user: str = Depends(current_user_api), se
     thread = _own_thread(user, request.query_params.get("thread") or f"panel-{user}")
     msgs = chat_mod.history(session, thread, 40)
     return JSONResponse({"thread": thread, "messages": [{"role": m.role, "html": md(m.content) if m.role == "assistant" else None, "text": m.content if m.role == "user" else None} for m in msgs if m.role in ("user", "assistant")]})
+
+
+# ------------------------------------------------------------------ OAuth Microsoft Advertising
+
+@app.get("/oauth/microsoft/start")
+def ms_oauth_start(request: Request, user: str = Depends(current_user)):
+    from .connectors import microsoft_ads
+
+    if not settings.ms_client_id:
+        raise HTTPException(400, "MS_ADS_CLIENT_ID fehlt in der .env")
+    state = csrf_token(request)
+    return RedirectResponse(microsoft_ads.auth_url(state=state), status_code=303)
+
+
+@app.get("/oauth/microsoft/callback", response_class=HTMLResponse)
+def ms_oauth_callback(request: Request, user: str = Depends(current_user)):
+    """Microsoft leitet nach der Zustimmung hierher; Code wird gegen ein Refresh-Token getauscht und in der .env gespeichert."""
+    from .connectors import microsoft_ads
+
+    q = request.query_params
+    if q.get("error"):
+        return render(request, "oauth_result.html", user, ok=False, message=f"{q.get('error')}: {q.get('error_description', '')}")
+    if not q.get("code"):
+        raise HTTPException(400, "code fehlt")
+    if q.get("state") != csrf_token(request):
+        return render(request, "oauth_result.html", user, ok=False, message="Ungültiger state-Parameter – bitte die Verbindung erneut über den Admin-Bereich starten.")
+    try:
+        token = microsoft_ads.refresh_token_from_redirect(None, None, str(request.url))
+    except Exception as exc:
+        log.exception("Microsoft-OAuth fehlgeschlagen")
+        return render(request, "oauth_result.html", user, ok=False, message=f"Token-Tausch fehlgeschlagen: {str(exc)[:400]}")
+    update_env_file({"MS_ADS_REFRESH_TOKEN": token, "MS_ADS_ENABLED": "1"})
+    settings.ms_refresh_token, settings.ms_enabled = token, True
+    try:
+        check = microsoft_ads.test_connection()
+    except Exception as exc:
+        log.exception("Microsoft-Verbindungstest fehlgeschlagen")
+        check = f"Token gespeichert, aber der Verbindungstest schlug fehl: {str(exc)[:400]}"
+    return render(request, "oauth_result.html", user, ok=True, message=check)
 
 
 # ------------------------------------------------------------------ Admin

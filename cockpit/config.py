@@ -75,6 +75,7 @@ class Settings:
     ms_refresh_token: str = os.getenv("MS_ADS_REFRESH_TOKEN", "")
     ms_customer_id: str = os.getenv("MS_ADS_CUSTOMER_ID", "")
     ms_account_id: str = os.getenv("MS_ADS_ACCOUNT_ID", "")
+    ms_tenant: str = os.getenv("MS_ADS_TENANT", "common")  # common | consumers (persönliches Microsoft-Konto) | <Tenant-ID>
 
     trello_enabled: bool = _bool("TRELLO_ENABLED", False)
     trello_key: str = os.getenv("TRELLO_KEY", "")

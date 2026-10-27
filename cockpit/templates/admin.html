@@ -6,6 +6,7 @@
   <div class="card">
     <h2>Verbindungen</h2>
     <dl class="kv">{% for name, ok in checks.items() %}<dt>{{ name }}</dt><dd>{{ 'konfiguriert' if ok else 'fehlt' }}</dd>{% endfor %}</dl>
+    {% if settings.ms_client_id %}<p><a class="btn secondary small" href="/oauth/microsoft/start">Microsoft Advertising {{ 'neu verbinden' if settings.ms_refresh_token else 'verbinden' }}</a> <span class="small muted">Anmeldung mit dem Microsoft-Konto, das im Ads-Konto Nutzer ist.</span></p>{% endif %}
     <p class="small muted">Konfiguration in der Datei .env auf dem Server. Prüfen per <code>python -m cockpit.cli test-connections</code>.</p>
     <h3>MCP-Endpunkt für ChatGPT</h3>
     <p class="small">URL (geheim, nur im Workspace hinterlegen): <code>{{ mcp_url }}</code></p>

@@ -26,6 +26,24 @@ from ..util import upsert
 log = logging.getLogger(__name__)
 PLATFORM = "microsoft"
 ENVIRONMENT = "production"
+NATIVE_REDIRECT = "https://login.microsoftonline.com/common/oauth2/nativeclient"
+
+
+def redirect_uri() -> str:
+    """Rückleitung nach der Microsoft-Anmeldung: ins Cockpit (/oauth/microsoft/callback), wenn eine Basis-URL gesetzt ist."""
+    return f"{settings.base_url}/oauth/microsoft/callback" if settings.base_url.startswith("https://") else NATIVE_REDIRECT
+
+
+def _grant(client_id: str | None = None, client_secret: str | None = None):
+    from bingads.authorization import OAuthWebAuthCodeGrant
+
+    return OAuthWebAuthCodeGrant(
+        client_id=client_id or settings.ms_client_id,
+        client_secret=(client_secret if client_secret is not None else settings.ms_client_secret) or None,
+        redirection_uri=redirect_uri(),
+        env=ENVIRONMENT,
+        tenant=settings.ms_tenant or "common",
+    )
 
 
 def _sdk():
@@ -41,14 +59,9 @@ def _sdk():
 
 
 def _authorization():
-    from bingads.authorization import AuthorizationData, OAuthWebAuthCodeGrant
+    from bingads.authorization import AuthorizationData
 
-    oauth = OAuthWebAuthCodeGrant(
-        client_id=settings.ms_client_id,
-        client_secret=settings.ms_client_secret or None,
-        redirection_uri="https://login.microsoftonline.com/common/oauth2/nativeclient",
-        env=ENVIRONMENT,
-    )
+    oauth = _grant()
     oauth.request_oauth_tokens_by_refresh_token(settings.ms_refresh_token)
     return AuthorizationData(
         account_id=settings.ms_account_id,
@@ -58,19 +71,15 @@ def _authorization():
     )
 
 
-def auth_url(client_id: str, state: str = "sea-cockpit") -> str:
-    """URL für die einmalige Nutzer-Zustimmung (siehe cli ms-auth)."""
-    from bingads.authorization import OAuthWebAuthCodeGrant
-
-    oauth = OAuthWebAuthCodeGrant(client_id=client_id, client_secret=None, redirection_uri="https://login.microsoftonline.com/common/oauth2/nativeclient", env=ENVIRONMENT)
+def auth_url(client_id: str | None = None, state: str = "sea-cockpit") -> str:
+    """URL für die einmalige Nutzer-Zustimmung (Admin → „Microsoft Advertising verbinden“ oder cli ms-auth)."""
+    oauth = _grant(client_id, "")
     oauth.state = state
     return oauth.get_authorization_endpoint()
 
 
-def refresh_token_from_redirect(client_id: str, client_secret: str, response_uri: str) -> str:
-    from bingads.authorization import OAuthWebAuthCodeGrant
-
-    oauth = OAuthWebAuthCodeGrant(client_id=client_id, client_secret=client_secret or None, redirection_uri="https://login.microsoftonline.com/common/oauth2/nativeclient", env=ENVIRONMENT)
+def refresh_token_from_redirect(client_id: str | None, client_secret: str | None, response_uri: str) -> str:
+    oauth = _grant(client_id, client_secret)
     oauth.request_oauth_tokens_by_response_uri(response_uri)
     return oauth.oauth_tokens.refresh_token
 

@@ -110,3 +110,18 @@ def test_chat_panel_api(client, monkeypatch):
     assert h2["thread"] == "panel-chris"
     html = client.get("/suchbegriffe").text
     assert 'id="sea-panel"' in html and "/api/chat/history" in client.get("/static/app.js").text
+
+
+def test_ms_oauth_routes_and_env_writer(client, tmp_path):
+    from cockpit.util import update_env_file
+
+    _login(client)
+    assert client.get("/oauth/microsoft/start", follow_redirects=False).status_code == 400  # keine Client-ID in Tests
+    r = client.get("/oauth/microsoft/callback?error=access_denied&error_description=abgelehnt")
+    assert r.status_code == 200 and "access_denied" in r.text
+    r = client.get("/oauth/microsoft/callback?code=abc&state=falsch")
+    assert r.status_code == 200 and "state" in r.text
+    env = tmp_path / ".env"
+    env.write_text("A=1\nMS_ADS_REFRESH_TOKEN=alt\n")
+    update_env_file({"MS_ADS_REFRESH_TOKEN": "neu", "MS_ADS_ENABLED": "1"}, env)
+    assert env.read_text() == "A=1\nMS_ADS_REFRESH_TOKEN=neu\nMS_ADS_ENABLED=1\n"
