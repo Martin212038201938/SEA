@@ -9,7 +9,7 @@
 <table>
   <tr><th>Anzeige</th><th>Stärke</th><th>Ziel-URL</th><th class="num">Impr.</th><th class="num">Klicks</th><th class="num">CTR</th><th class="num">Kosten</th><th class="num">Conv.</th><th class="num">CPL</th></tr>
   {% for a in ads %}
-  <tr><td class="small"><strong>{{ a.ad_type }}</strong> · {{ a.status }}<div class="muted">{{ a.headlines | join(' | ') }}</div><div class="muted">{{ a.descriptions | join(' | ') }}</div></td><td class="small">{{ a.ad_strength }}</td><td class="small">{{ a.final_url }}</td><td class="num">{{ a.impressions }}</td><td class="num">{{ a.clicks }}</td><td class="num">{{ a.ctr | pct }}</td><td class="num">{{ a.cost | eur }}</td><td class="num">{{ a.conversions | num(1) }}</td><td class="num">{{ a.cpl | eur }}</td></tr>
+  <tr><td class="small">{{ a.platform | pf }} <strong>{{ a.ad_type }}</strong> · {{ a.status }}<div class="muted">{{ a.headlines | join(' | ') }}</div><div class="muted">{{ a.descriptions | join(' | ') }}</div></td><td class="small">{{ a.ad_strength }}</td><td class="small">{{ a.final_url }}</td><td class="num">{{ a.impressions }}</td><td class="num">{{ a.clicks }}</td><td class="num">{{ a.ctr | pct }}</td><td class="num">{{ a.cost | eur }}</td><td class="num">{{ a.conversions | num(1) }}</td><td class="num">{{ a.cpl | eur }}</td></tr>
   {% else %}<tr><td colspan="9" class="muted">Keine Anzeigendaten.</td></tr>{% endfor %}
 </table>
 </div>

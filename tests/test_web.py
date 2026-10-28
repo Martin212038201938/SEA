@@ -183,3 +183,54 @@ def test_edge_cases(client):
 
     with session_scope() as s:
         assert page_context.build(s, "/gibtsnicht", {"days": "abc"})["title"] == "/gibtsnicht"
+
+
+def test_memory_digest_toggle_and_search(client, monkeypatch, tmp_path):
+    import datetime as dt
+    from cockpit.db import session_scope
+    from cockpit.llm import client as llm, memory
+    from cockpit.models import ChatMessage, ChatDigest
+
+    monkeypatch.setattr(memory, "HISTORY_DIR", tmp_path)
+    with session_scope() as s:
+        old = dt.datetime(2026, 10, 20, 10, 0)
+        s.add(ChatMessage(thread_id="panel-chris", user="chris", role="user", content="Ich habe heute das Conversion-Ziel auf primär umgestellt.", created_at=old))
+        s.add(ChatMessage(thread_id="panel-chris", user="chris", role="assistant", content="Notiert.", created_at=old + dt.timedelta(minutes=1)))
+        s.flush()
+        n = memory.build_digests(s, until=dt.date(2026, 10, 27), summarize=lambda text: "[Umgesetzt] Conversion-Ziel auf primär umgestellt (20.10.)")
+        assert n >= 1
+        assert (tmp_path / "chris" / "2026-10-20.md").is_file()
+        assert memory.build_digests(s, until=dt.date(2026, 10, 27), summarize=lambda t: "x") == 0  # nicht doppelt
+        hits = memory.search(s, "conversion-ziel primär")
+        assert hits and hits[0]["who"] == "chris"
+        s.query(ChatDigest).filter(ChatDigest.day == dt.date(2026, 10, 20)).update({"day": dt.date.today() - dt.timedelta(days=3)})
+
+    _login(client)
+    seen = []
+    monkeypatch.setattr(llm, "run_with_tools", lambda system, msgs, tools, executor, model=None, **kw: (seen.append((system, [t["name"] for t in tools])) or ("ok", [])))
+    client.post("/api/chat", json={"question": "Wann war das?", "thread": "panel-chris-m"})
+    assert "GEDÄCHTNIS (" in seen[-1][0] and "search_chat_history" in seen[-1][1]
+    client.post("/api/chat", json={"question": "Frisch bitte", "thread": "panel-chris-m", "memory": False})
+    assert "GEDÄCHTNIS AUS" in seen[-1][0] and "search_chat_history" not in seen[-1][1]
+    assert "Conversion-Ziel" in client.get("/gedaechtnis").text
+
+
+def test_suggestion_discard_and_platform_badge(client):
+    from cockpit.db import session_scope
+    from cockpit.models import Suggestion
+
+    with session_scope() as s:
+        sg = Suggestion(source="manual", platform="microsoft", title="Testvorschlag Verwerfen", priority=2)
+        s.add(sg)
+        s.flush()
+        sid = sg.id
+    _login(client)
+    csrf = _csrf(client)
+    assert 'class="pf pf-microsoft"' in client.get("/vorschlaege").text
+    r = client.post(f"/vorschlaege/{sid}/verwerfen", data={"csrf": csrf, "reason": "passt nicht zu Inhouse"}, follow_redirects=False)
+    assert r.status_code == 303
+    assert "passt nicht zu Inhouse" in client.get("/vorschlaege?status=verworfen").text
+    client.post(f"/vorschlaege/{sid}/verwerfen", data={"csrf": csrf, "reason": "", "delete": "1"})
+    assert f"/vorschlaege/{sid}\"" not in client.get("/vorschlaege?status=alle").text
+    html = client.get("/").text
+    assert 'class="pf pf-google"' in html and "/static/logo.svg" in html

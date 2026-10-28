@@ -100,6 +100,15 @@ def nightly(session: Session, days_back: int = 7) -> JobRun:
             else:
                 jl("Search Console nicht konfiguriert.")
 
+        # Gedächtnis: Gespräche der Vortage zusammenfassen
+        try:
+            from .llm import memory as memory_mod
+
+            jl(f"Gedächtnis: {memory_mod.build_digests(session)} Tageszusammenfassung(en) erstellt")
+            session.commit()
+        except Exception as exc:
+            jl(f"Gedächtnis fehlgeschlagen: {str(exc)[:200]}")
+
         # Umgesetzte Vorschläge erneut gegen den Änderungsverlauf prüfen (bis 7 Tage nach Umsetzung)
         checked = 0
         for s in session.execute(select(Suggestion).where(Suggestion.status == "umgesetzt")).scalars().all():
@@ -108,19 +117,21 @@ def nightly(session: Session, days_back: int = 7) -> JobRun:
                 checked += 1
         jl(f"Umsetzungs-Abgleich: {checked} Vorschläge geprüft")
 
-        # Alerts
+        # Alerts: nur hier (nicht im Wochenreport) und mit Datenreife – ausgewertet wird vorgestern, nicht gestern
         created_total = []
+        alert_day = anomalies.evaluation_day(session)
+        jl(f"Alerts für {alert_day} (Datenreife {anomalies.thresholds(session)['alert_lag_days']} Tage)")
         for platform in ("google", "microsoft"):
-            cands = anomalies.evaluate(session, end, platform)
-            created = anomalies.persist(session, end, platform, cands)
+            cands = anomalies.evaluate(session, alert_day, platform)
+            created = anomalies.persist(session, alert_day, platform, cands)
             created_total.extend(created)
             jl(f"Alerts {platform}: {len(cands)} erkannt, {len(created)} neu")
         stats["alerts_new"] = len(created_total)
         if created_total:
             digest = report_mod.alert_digest(created_total)
-            lines = [f"- [{a.severity}] {a.title}: {a.message}" for a in created_total]
+            lines = [f"- **[{'Microsoft' if a.platform == 'microsoft' else 'Google'}]** [{a.severity}] {a.title}: {a.message}" for a in created_total]
             text = (digest + "\n\n" if digest and digest != "\n".join(lines) else "") + "\n".join(lines)
-            sent = notify.broadcast(f"SEA-Cockpit: {len(created_total)} Auffälligkeit(en) am {end.strftime('%d.%m.%Y')}", text, "/alerts")
+            sent = notify.broadcast(f"SEA-Cockpit: {len(created_total)} Auffälligkeit(en) am {alert_day.strftime('%d.%m.%Y')}", text, "/alerts")
             jl(f"Benachrichtigung: {sent}")
             if any(sent.values()):
                 for a in created_total:

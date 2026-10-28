@@ -65,6 +65,8 @@ def build_pack(session: Session, kind: str, end: dt.date, platform: str = "all")
     done_s = session.execute(select(Suggestion).where(Suggestion.status == "umgesetzt").order_by(Suggestion.status_changed_at.desc()).limit(15)).scalars().all()
     pack["open_suggestions"] = [{"id": s.id, "title": s.title, "category": s.category, "priority": s.priority, "created_at": s.created_at.isoformat()} for s in open_s]
     pack["implemented_suggestions"] = [{**suggestion_dict(s)} for s in done_s]
+    rejected = session.execute(select(Suggestion).where(Suggestion.status.in_(("verworfen", "geloescht"))).order_by(Suggestion.status_changed_at.desc()).limit(40)).scalars().all()
+    pack["rejected_suggestions"] = [{"title": s.title, "category": s.category, "reason": s.status_note, "when": s.status_changed_at.isoformat() if s.status_changed_at else None} for s in rejected]
     # Alerts der Periode
     since = dt.date.fromisoformat(pack["period"]["start"])
     alerts = session.execute(select(Alert).where(Alert.date >= since, Alert.date <= end).order_by(Alert.created_at.desc()).limit(40)).scalars().all()

@@ -131,6 +131,7 @@
     const log = document.getElementById("panel-log"), form = document.getElementById("panel-form");
     const ta = form.querySelector("textarea"), btn = form.querySelector("button[type=submit]");
     const ctxEl = document.getElementById("panel-ctx");
+    const memToggle = document.getElementById("panel-memory");
     const store = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
     let thread = store.get("sea-panel-thread", "panel-" + user);
     if (!thread.startsWith("panel-" + user)) thread = "panel-" + user;
@@ -165,7 +166,7 @@
       add("user", esc(q).replace(/\n/g, "<br>"));
       ta.value = ""; btn.disabled = true;
       const pending = add("assistant", "<span class='muted'>Schaue mir die Daten an …</span>");
-      fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ question: q, thread, page: pageInfo() }) })
+      fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ question: q, thread, page: pageInfo(), memory: memToggle ? memToggle.checked : true }) })
         .then(r => r.json())
         .then(d => {
           pending.innerHTML = d.answer_html || esc(d.answer || "");
@@ -194,6 +195,10 @@
     });
     const big = document.getElementById("panel-big");
     if (big) big.href = "/chat?thread=" + encodeURIComponent(thread);
+    if (memToggle) {
+      memToggle.checked = store.get("sea-panel-memory", "1") === "1";
+      memToggle.addEventListener("change", () => store.set("sea-panel-memory", memToggle.checked ? "1" : "0"));
+    }
     loadHistory();
   }
   document.addEventListener("DOMContentLoaded", seaPanel);

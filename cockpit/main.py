@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import markdown as md_lib
+from markupsafe import Markup
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -78,6 +79,19 @@ def md(text: str) -> str:
 
 
 templates.env.filters["md"] = md
+
+PLATFORM_LABEL = {"google": "Google", "microsoft": "Microsoft"}
+
+
+def platform_badge(platform: str | None) -> Markup:
+    """Farbmarke je Werbeplattform: Google rot, Microsoft blau."""
+    p = (platform or "").lower()
+    if p not in PLATFORM_LABEL:
+        return Markup("")
+    return Markup(f'<span class="pf pf-{p}" title="{PLATFORM_LABEL[p]} Ads">{PLATFORM_LABEL[p]}</span>')
+
+
+templates.env.filters["pf"] = platform_badge
 templates.env.filters["strip_choices"] = lambda text: chat_choices.parse(text or "")[0]
 
 
@@ -176,6 +190,8 @@ def suggestions_page(request: Request, user: str = Depends(current_user), sessio
     stmt = select(Suggestion).order_by(Suggestion.priority, Suggestion.created_at.desc())
     if status != "alle":
         stmt = stmt.where(Suggestion.status == status)
+    else:
+        stmt = stmt.where(Suggestion.status != "geloescht")
     rows = session.execute(stmt.limit(200)).scalars().all()
     counts = dict(session.execute(select(Suggestion.status, func.count(Suggestion.id)).group_by(Suggestion.status)).all())
     return render(request, "suggestions.html", user, suggestions=rows, status=status, counts=counts)
@@ -197,6 +213,15 @@ def suggestion_status(sid: int, request: Request, status: str = Form(...), note:
     check_csrf(request, csrf)
     tool_call(session, user, "update_suggestion_status", {"suggestion_id": sid, "status": status, "note": note, "implemented_on": implemented_on or None})
     return RedirectResponse(f"/vorschlaege/{sid}", status_code=303)
+
+
+@app.post("/vorschlaege/{sid}/verwerfen")
+def suggestion_discard(sid: int, request: Request, reason: str = Form(""), delete: str = Form(""), csrf: str = Form(...), user: str = Depends(current_user), session: Session = Depends(get_session)):
+    """Schnell verwerfen (bleibt unter „Verworfen“ sichtbar) oder löschen (ausgeblendet). Begründung fließt in künftige Reports ein."""
+    check_csrf(request, csrf)
+    tool_call(session, user, "update_suggestion_status", {"suggestion_id": sid, "status": "geloescht" if delete else "verworfen", "note": reason.strip() or ("gelöscht" if delete else "verworfen")})
+    back = request.headers.get("referer") or "/vorschlaege"
+    return RedirectResponse(back if "/vorschlaege" in back and f"/vorschlaege/{sid}" not in back else "/vorschlaege", status_code=303)
 
 
 @app.post("/vorschlaege/neu")
@@ -452,7 +477,7 @@ async def api_chat(request: Request, user: str = Depends(current_user_api), sess
     page = body.get("page") if isinstance(body.get("page"), dict) else None
     if page:
         page = {"path": str(page.get("path") or "/")[:200], "query": {str(k)[:40]: str(v)[:120] for k, v in (page.get("query") or {}).items()} if isinstance(page.get("query"), dict) else {}}
-    result = chat_mod.ask(session, user, thread, question, page)
+    result = chat_mod.ask(session, user, thread, question, page, memory=body.get("memory", True) is not False)
     result["answer_html"] = md(result["answer"])
     return JSONResponse(result)
 
@@ -516,6 +541,28 @@ def help_page(request: Request, user: str = Depends(current_user)):
     return render(request, "help.html", user, body=md(text))
 
 
+@app.get("/gedaechtnis", response_class=HTMLResponse)
+def memory_page(request: Request, user: str = Depends(current_user), session: Session = Depends(get_session)):
+    from .llm import memory as memory_mod
+
+    return render(request, "memory.html", user, digests=memory_mod.digests(session))
+
+
+@app.get("/gedaechtnis/{who}/{day}.md")
+def memory_markdown(who: str, day: str, user: str = Depends(current_user), session: Session = Depends(get_session)):
+    from fastapi.responses import PlainTextResponse
+
+    from .llm import memory as memory_mod
+
+    d = parse_date(day)
+    if not d or not who.isalnum():
+        raise HTTPException(404)
+    path = memory_mod.HISTORY_DIR / who / f"{d.isoformat()}.md"
+    if not path.is_file():
+        raise HTTPException(404)
+    return PlainTextResponse(path.read_text(encoding="utf-8"), media_type="text/markdown; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="analyst-{who}-{d.isoformat()}.md"'})
+
+
 # ------------------------------------------------------------------ Admin
 
 @app.get("/admin", response_class=HTMLResponse)
@@ -546,7 +593,8 @@ def admin_job(name: str, request: Request, csrf: str = Form(...), user: str = De
         jobs.monthly(session, send=False)
     elif name == "alerts":
         for p in ("google", "microsoft"):
-            anomalies.persist(session, yesterday(), p, anomalies.evaluate(session, yesterday(), p))
+            day = anomalies.evaluation_day(session)
+            anomalies.persist(session, day, p, anomalies.evaluate(session, day, p))
     else:
         raise HTTPException(404)
     return RedirectResponse("/admin", status_code=303)

@@ -61,6 +61,8 @@ Leads, offenen Vorschlägen und Experimenten. Liefere zwei Dinge:
    ## Umgesetzte Vorschläge – ob eine Wirkung sichtbar ist oder es dafür zu früh ist
    ## Organisch und Paid – nur wenn organic_28d im Paket steht: Kannibalisierung (bezahlt trotz organisch Top 3), belegter Bedarf ohne Paid, Content-Lücken; sonst Abschnitt weglassen
    ## Nächste Woche (bzw. nächster Monat)
+   Schlage nichts erneut vor, was unter rejected_suggestions steht, es sei denn, die Datenlage hat sich deutlich
+   geändert; dann nenne den verworfenen Vorschlag und warum er jetzt anders zu bewerten ist.
    Keine Floskeln, keine Wiederholung der Vorschlagstexte (die stehen separat).
 
 2. suggestions: 3 bis 6 priorisierte Vorschläge. Jeder Vorschlag enthält:

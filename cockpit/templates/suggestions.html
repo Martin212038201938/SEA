@@ -1,25 +1,39 @@
 {% extends "base.html" %}
-{% block title %}Vorschläge{% endblock %}
+{% block title %}Vorschläge<script>
+document.querySelectorAll(".discard-form").forEach(f => f.addEventListener("submit", e => {
+  const del = e.submitter && e.submitter.name === "delete";
+  const r = window.prompt(del ? "Warum löschen? (optional, hilft dem Analysten)" : "Warum verwerfen? (hilft, dass der Vorschlag nicht wiederkommt)", "");
+  if (r === null) { e.preventDefault(); return; }
+  f.querySelector("input[name=reason]").value = r;
+}));
+</script>
+{% endblock %}
 {% block content %}
 <h1>Vorschläge</h1>
 <p class="sub">Das Cockpit schlägt vor, Chris setzt um und meldet es zurück. Jede Umsetzung wird zum Experiment, damit die Wirkung messbar bleibt.</p>
 <div class="period">
-  {% for st, l in [("offen","Offen"),("umgesetzt","Umgesetzt"),("später","Später"),("verworfen","Verworfen"),("alle","Alle")] %}
+  {% for st, l in [("offen","Offen"),("umgesetzt","Umgesetzt"),("später","Später"),("verworfen","Verworfen"),("geloescht","Gelöscht"),("alle","Alle")] %}
   <a href="/vorschlaege?status={{ st }}" class="{{ 'active' if st == status else '' }}">{{ l }}{% if counts.get(st) %} ({{ counts[st] }}){% endif %}</a>
   {% endfor %}
 </div>
 <div class="card">
 <table>
-  <tr><th>Prio</th><th>Vorschlag</th><th>Kategorie</th><th>Aufwand</th><th>Sicherheit</th><th>Quelle</th><th>Status</th></tr>
+  <tr><th>Prio</th><th>Vorschlag</th><th>Kategorie</th><th>Aufwand</th><th>Sicherheit</th><th>Quelle</th><th>Status</th><th></th></tr>
   {% for s in suggestions %}
   <tr>
     <td><span class="badge p{{ s.priority }}">P{{ s.priority }}</span></td>
-    <td><a href="/vorschlaege/{{ s.id }}"><strong>{{ s.title }}</strong></a><div class="small muted">{{ s.rationale[:160] }}{% if s.rationale|length > 160 %}…{% endif %}</div></td>
+    <td>{{ s.platform | pf }} <a href="/vorschlaege/{{ s.id }}"><strong>{{ s.title }}</strong></a><div class="small muted">{{ s.rationale[:160] }}{% if s.rationale|length > 160 %}…{% endif %}</div></td>
     <td class="small">{{ s.category }}</td><td class="small">{{ s.effort }}</td><td class="small">{{ s.confidence }}</td>
     <td class="small">{{ s.source }} · {{ s.created_at.strftime('%d.%m.%Y') }}</td>
-    <td><span class="badge {{ s.status }}">{{ s.status }}</span></td>
+    <td><span class="badge {{ s.status }}">{{ s.status }}</span>{% if s.status in ('verworfen','geloescht') and s.status_note %}<div class="small muted">{{ s.status_note[:80] }}</div>{% endif %}</td>
+    <td class="nowrap">{% if s.status not in ('verworfen','geloescht') %}
+      <form method="post" action="/vorschlaege/{{ s.id }}/verwerfen" class="discard-form" style="display:inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="reason" value="">
+        <button class="btn small secondary" type="submit" title="Verwerfen (mit Begründung)">Verwerfen</button>
+        <button class="btn small secondary" type="submit" name="delete" value="1" title="Löschen: ausblenden">Löschen</button>
+      </form>{% endif %}</td>
   </tr>
-  {% else %}<tr><td colspan="7" class="muted">Keine Vorschläge mit diesem Status.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="8" class="muted">Keine Vorschläge mit diesem Status.</td></tr>{% endfor %}
 </table>
 </div>
 
@@ -32,4 +46,12 @@
   <label>Schritte (eine Zeile je Schritt)</label><textarea name="steps"></textarea>
   <button class="btn" type="submit">Anlegen</button>
 </form></details>
+<script>
+document.querySelectorAll(".discard-form").forEach(f => f.addEventListener("submit", e => {
+  const del = e.submitter && e.submitter.name === "delete";
+  const r = window.prompt(del ? "Warum löschen? (optional, hilft dem Analysten)" : "Warum verwerfen? (hilft, dass der Vorschlag nicht wiederkommt)", "");
+  if (r === null) { e.preventDefault(); return; }
+  f.querySelector("input[name=reason]").value = r;
+}));
+</script>
 {% endblock %}

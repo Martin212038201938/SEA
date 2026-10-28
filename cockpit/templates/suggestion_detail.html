@@ -19,10 +19,10 @@
     <form method="post" action="/vorschlaege/{{ s.id }}/status">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <div class="form-row">
-        <div><label>Status</label><select name="status">{% for st in ["offen","umgesetzt","später","verworfen"] %}<option {{ 'selected' if st == s.status else '' }}>{{ st }}</option>{% endfor %}</select></div>
+        <div><label>Status</label><select name="status">{% for st in ["offen","umgesetzt","später","verworfen","geloescht"] %}<option {{ 'selected' if st == s.status else '' }}>{{ st }}</option>{% endfor %}</select></div>
         <div><label>Umgesetzt am</label><input type="date" name="implemented_on"></div>
       </div>
-      <label>Notiz</label><textarea name="note" placeholder="z. B. nur Teil 1 und 2 umgesetzt">{{ s.status_note }}</textarea>
+      <label>Notiz</label><textarea name="note" placeholder="z. B. nur Teil 1 und 2 umgesetzt; bei verworfen: warum">{{ s.status_note }}</textarea>
       <button class="btn" type="submit">Speichern</button>
     </form>
     {% if s.status == 'umgesetzt' and s.verification %}

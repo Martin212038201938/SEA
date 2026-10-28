@@ -420,7 +420,7 @@ def update_experiment(session: Session, user: str, **args):
 @tool(
     "update_suggestion_status",
     "Status eines Vorschlags setzen: umgesetzt (mit Datum), verworfen, später, offen. Bei 'umgesetzt' wird der Änderungsverlauf der folgenden Tage auf eine passende Änderung geprüft.",
-    {"type": "object", "properties": {"suggestion_id": {"type": "integer"}, "status": {"type": "string", "enum": ["offen", "umgesetzt", "verworfen", "später"]}, "note": {"type": "string"}, "implemented_on": {"type": "string", "description": "Datum der Umsetzung YYYY-MM-DD (Standard heute)"}}, "required": ["suggestion_id", "status"], "additionalProperties": False},
+    {"type": "object", "properties": {"suggestion_id": {"type": "integer"}, "status": {"type": "string", "enum": ["offen", "umgesetzt", "verworfen", "später", "geloescht"]}, "note": {"type": "string", "description": "Bei verworfen/geloescht: Begründung, damit der Vorschlag nicht wiederkommt"}, "implemented_on": {"type": "string", "description": "Datum der Umsetzung YYYY-MM-DD (Standard heute)"}}, "required": ["suggestion_id", "status"], "additionalProperties": False},
     writes=True,
 )
 def update_suggestion_status(session: Session, user: str, **args):
@@ -532,11 +532,25 @@ def decide_search_term(session: Session, user: str, **args):
     return triage.row_dict(row)
 
 
-def openai_tools(include_writes: bool = True) -> list[dict[str, Any]]:
+@tool(
+    "search_chat_history",
+    "Frühere Gespräche mit Chris und Martin im Wortlaut durchsuchen (Gedächtnis), z. B. „Wann haben wir das Conversion-Ziel umgestellt?“. Suchwörter, optional Zeitraum.",
+    {"type": "object", "properties": {"query": {"type": "string"}, "since": {"type": "string", "description": "YYYY-MM-DD"}, "until": {"type": "string", "description": "YYYY-MM-DD"}, "limit": {"type": "integer"}}, "required": ["query"], "additionalProperties": False},
+)
+def search_chat_history(session: Session, user: str, **args):
+    from . import memory
+
+    return memory.search(session, args["query"], parse_date(args.get("since")), parse_date(args.get("until")), int(args.get("limit") or 20))
+
+
+MEMORY_TOOLS = {"search_chat_history"}
+
+
+def openai_tools(include_writes: bool = True, memory: bool = True) -> list[dict[str, Any]]:
     return [
         {"type": "function", "name": t.name, "description": t.description, "parameters": t.parameters}
         for t in REGISTRY.values()
-        if include_writes or not t.writes
+        if (include_writes or not t.writes) and (memory or t.name not in MEMORY_TOOLS)
     ]
 
 

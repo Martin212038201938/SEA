@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import ChatMessage
-from . import choices, client as llm, page_context
+from . import choices, client as llm, memory as memory_mod, page_context
 from .prompts import BANTER, BANTER_QUOTA_OPEN, BANTER_QUOTA_USED, CHAT_SYSTEM
 from ..util import get_setting, set_setting, today_local
 from .tools import call, openai_tools
@@ -32,7 +32,7 @@ def _is_model_missing(exc: Exception) -> bool:
     return "model" in s and ("not_found" in s or "not found" in s or "does not exist" in s)
 
 
-def ask(session: Session, user: str, thread_id: str, question: str, page: dict[str, Any] | None = None) -> dict[str, Any]:
+def ask(session: Session, user: str, thread_id: str, question: str, page: dict[str, Any] | None = None, memory: bool = True) -> dict[str, Any]:
     """page = {"path": "/suchbegriffe", "query": {"days": "28", "waste": "1"}} (vom Panel) oder None (große Chat-Seite)."""
     session.add(ChatMessage(thread_id=thread_id, user=user, role="user", content=question))
     session.flush()
@@ -55,6 +55,13 @@ def ask(session: Session, user: str, thread_id: str, question: str, page: dict[s
     if user in BANTER:
         used = get_setting(session, joke_key, "0") == "1"
         system += BANTER[user].format(quota=BANTER_QUOTA_USED if used else BANTER_QUOTA_OPEN)
+    if memory:
+        try:
+            system += memory_mod.prompt_block(session)
+        except Exception:
+            log.exception("Gedächtnis konnte nicht geladen werden")
+    else:
+        system += "\n\nGEDÄCHTNIS AUS: Der Nutzer will frisch denken. Beziehe dich nicht auf frühere Gespräche außerhalb dieses Threads."
     context_title = None
     if page and page.get("path"):
         try:
@@ -70,13 +77,13 @@ def ask(session: Session, user: str, thread_id: str, question: str, page: dict[s
     model = llm.model_name(chat=True)
     try:
         try:
-            answer, calls = llm.run_with_tools(system, msgs, openai_tools(True), executor, model=model)
+            answer, calls = llm.run_with_tools(system, msgs, openai_tools(True, memory=memory), executor, model=model)
         except Exception as exc:
             if not _is_model_missing(exc) or model == llm.model_name():
                 raise
             log.warning("Chat-Modell %s nicht verfügbar, Rückfall auf %s", model, llm.model_name())
             model = llm.model_name()
-            answer, calls = llm.run_with_tools(system, msgs, openai_tools(True), executor, model=model)
+            answer, calls = llm.run_with_tools(system, msgs, openai_tools(True, memory=memory), executor, model=model)
     except llm.LLMUnavailable as exc:
         answer, calls = f"Chat nicht verfügbar: {exc}", []
     except Exception as exc:

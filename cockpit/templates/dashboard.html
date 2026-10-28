@@ -18,7 +18,7 @@
     {% if suggestions %}
     <table>
       {% for s in suggestions %}
-      <tr><td><span class="badge p{{ s.priority }}">P{{ s.priority }}</span></td><td><a href="/vorschlaege/{{ s.id }}">{{ s.title }}</a><div class="small muted">{{ s.category }} · {{ s.effort or '' }} · {{ s.created_at.strftime('%d.%m.') }}</div></td></tr>
+      <tr><td><span class="badge p{{ s.priority }}">P{{ s.priority }}</span></td><td>{{ s.platform | pf }} <a href="/vorschlaege/{{ s.id }}">{{ s.title }}</a><div class="small muted">{{ s.category }} · {{ s.effort or '' }} · {{ s.created_at.strftime('%d.%m.') }}</div></td></tr>
       {% endfor %}
     </table>
     <p class="small"><a href="/vorschlaege">Alle Vorschläge</a></p>
@@ -26,7 +26,7 @@
 
     <h2>Auffälligkeiten</h2>
     {% if alerts %}
-    {% for a in alerts %}<div class="alert-row"><span class="badge {{ a.severity }}">{{ a.severity }}</span><div class="body"><strong>{{ a.title }}</strong><div class="small muted">{{ a.date.strftime('%d.%m.') }} · {{ a.message[:140] }}{% if a.message|length > 140 %}…{% endif %}</div></div></div>{% endfor %}
+    {% for a in alerts %}<div class="alert-row"><span class="badge {{ a.severity }}">{{ a.severity }}</span><div class="body">{{ a.platform | pf }} <strong>{{ a.title }}</strong><div class="small muted">{{ a.date.strftime('%d.%m.') }} · {{ a.message[:140] }}{% if a.message|length > 140 %}…{% endif %}</div></div></div>{% endfor %}
     <p class="small"><a href="/alerts">Alle Alerts</a></p>
     {% else %}<p class="muted">Keine unbestätigten Auffälligkeiten.</p>{% endif %}
   </div>
@@ -38,7 +38,7 @@
     <table>
       <tr><th>Kampagne</th><th>Strategie</th><th class="num">Kosten</th><th class="num">Klicks</th><th class="num">CPC</th><th class="num">Conv.</th><th class="num">CPL</th></tr>
       {% for c in campaigns %}
-      <tr><td>{{ c.campaign_name }}<div class="small muted">{{ c.platform }} · {{ c.status }} · Budget {{ c.budget_amount | eur }}/Tag{% if c.end_date and c.end_date != '2037-12-30' %} · Ende {{ c.end_date }}{% endif %}</div></td><td class="small">{{ c.bidding_strategy }}</td><td class="num">{{ c.cost | eur }}</td><td class="num">{{ c.clicks }}</td><td class="num">{{ c.avg_cpc | eur }}</td><td class="num">{{ c.conversions | num(1) }}</td><td class="num">{{ c.cpl | eur }}</td></tr>
+      <tr><td>{{ c.platform | pf }} {{ c.campaign_name }}<div class="small muted">{{ c.status }} · Budget {{ c.budget_amount | eur }}/Tag{% if c.end_date and c.end_date != '2037-12-30' %} · Ende {{ c.end_date }}{% endif %}</div></td><td class="small">{{ c.bidding_strategy }}</td><td class="num">{{ c.cost | eur }}</td><td class="num">{{ c.clicks }}</td><td class="num">{{ c.avg_cpc | eur }}</td><td class="num">{{ c.conversions | num(1) }}</td><td class="num">{{ c.cpl | eur }}</td></tr>
       {% else %}<tr><td colspan="7" class="muted">Noch keine Kampagnendaten. Admin → Nightly-Job starten oder Demo-Daten einspielen.</td></tr>{% endfor %}
     </table>
   </div>

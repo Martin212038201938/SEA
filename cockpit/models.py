@@ -318,6 +318,19 @@ class ChatMessage(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class ChatDigest(Base):
+    """Tageszusammenfassung der Gespräche mit dem Analysten (Gedächtnis), je Nutzer und Tag."""
+
+    __tablename__ = "chat_digests"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    day: Mapped[dt.date] = mapped_column(Date, index=True)
+    user: Mapped[str] = mapped_column(String(64), index=True)
+    summary: Mapped[str] = mapped_column(Text, default="")
+    message_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+    __table_args__ = (UniqueConstraint("day", "user"),)
+
+
 class JobRun(Base):
     __tablename__ = "job_runs"
     id: Mapped[int] = mapped_column(primary_key=True)

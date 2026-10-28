@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Gedächtnis{% endblock %}
+{% block content %}
+<h1>Gedächtnis des Analysten</h1>
+<p class="sub">Jede Nacht fasst das Cockpit die Gespräche des Vortags zusammen. Mit „Historie an“ im Analyst-Panel nutzt der Analyst diese Zusammenfassungen und kann alle Gespräche im Wortlaut durchsuchen. Jeder Tag liegt zusätzlich als Markdown-Datei vor.</p>
+<div class="card">
+{% for d in digests %}
+  <div class="alert-row"><div class="body"><strong>{{ d.day.strftime('%d.%m.%Y') }}</strong> <span class="small muted">{{ d.user }} · {{ d.message_count }} Nachrichten · <a href="/gedaechtnis/{{ d.user }}/{{ d.day.isoformat() }}.md">Markdown</a></span><div class="small report-md">{{ d.summary | md | safe }}</div></div></div>
+{% else %}<p class="muted">Noch keine Zusammenfassungen. Die erste entsteht im Nachtlauf nach dem ersten Gesprächstag.</p>{% endfor %}
+</div>
+{% endblock %}

@@ -50,3 +50,28 @@ def test_wilson_interval():
     lo, hi = experiments.wilson_interval(3, 100)
     assert 0 < lo < 0.03 < hi < 0.1
     assert experiments.wilson_interval(0, 0) is None
+
+
+def test_zero_impressions_plausibility_and_counting(session):
+    import datetime as dt
+    from cockpit.analysis import anomalies
+    from cockpit.models import CampaignDaily, ConversionAction
+
+    day = dt.date(2026, 10, 27)  # Dienstag
+    for i in range(1, 10):
+        d = day - dt.timedelta(days=i)
+        session.add(CampaignDaily(date=d, platform="google", campaign_id="P1", campaign_name="Plausi", status="ENABLED", impressions=100, clicks=5, cost=40.0))
+    # Import unvollständig: Kosten und Klicks da, Impressionen 0 -> kein Alarm
+    row = CampaignDaily(date=day, platform="google", campaign_id="P1", campaign_name="Plausi", status="ENABLED", impressions=0, clicks=4, cost=148.0)
+    session.add(row)
+    session.add(ConversionAction(platform="google", external_id="CA9", name="Lead Formular senden", category="SUBMIT_LEAD_FORM", status="ENABLED", primary_for_goal=True, counting_type="MANY_PER_CLICK"))
+    session.flush()
+    rules = {(a["rule"], a["key"]) for a in anomalies.evaluate(session, day, "google")}
+    assert ("zero_impressions", "P1") not in rules
+    assert ("counting_type", "CA9") in rules
+    # echter Ausfall: alles 0 -> Alarm
+    row.clicks, row.cost = 0, 0.0
+    session.flush()
+    assert ("zero_impressions", "P1") in {(a["rule"], a["key"]) for a in anomalies.evaluate(session, day, "google")}
+    assert anomalies.evaluation_day(session, dt.date(2026, 10, 28)) == dt.date(2026, 10, 26)
+    session.rollback()

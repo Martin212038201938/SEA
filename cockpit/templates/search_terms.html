@@ -18,7 +18,7 @@
   <tr><th>Suchbegriff</th><th>Keyword</th><th>Status</th><th class="num">Impr.</th><th class="num">Klicks</th><th class="num">Kosten</th><th class="num">Conv.</th><th class="num">CPL</th><th>Zuletzt</th><th>Triage</th></tr>
   {% for t in terms %}
   <tr data-platform="{{ t.platform }}" data-term="{{ t.search_term }}">
-    <td>{{ t.search_term }}{% if t.platform != 'google' %} <span class="badge">{{ t.platform }}</span>{% endif %}</td>
+    <td>{{ t.platform | pf }} {{ t.search_term }}</td>
     <td class="small">{{ t.matched_keyword }} <span class="muted">{{ t.match_type }}</span></td>
     <td class="small">{{ t.status }}</td>
     <td class="num">{{ t.impressions }}</td><td class="num">{{ t.clicks }}</td><td class="num">{{ t.cost | eur }}</td><td class="num">{{ t.conversions | num(1) }}</td><td class="num">{{ t.cpl | eur }}</td>

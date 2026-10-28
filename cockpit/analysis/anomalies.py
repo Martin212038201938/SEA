@@ -22,7 +22,16 @@ DEFAULT_THRESHOLDS = {
     "wasted_term_cost": 25.0,       # Suchbegriff ohne Conversion mit Kosten ab x € (28 Tage)
     "campaign_end_within_days": 14,
     "cpl_over_max_days": 28,
+    "alert_lag_days": 2,            # Tagesalarme erst für Tage mit diesem Abstand (Google/Microsoft liefern Impressionen nach)
 }
+
+
+def evaluation_day(session: Session, today: dt.date | None = None) -> dt.date:
+    """Tag, für den Tagesalarme ausgewertet werden: heute minus Datenreife (Standard 2 Tage)."""
+    from ..util import today_local
+
+    lag = int(thresholds(session).get("alert_lag_days") or 2)
+    return (today or today_local()) - dt.timedelta(days=max(1, lag))
 
 
 def thresholds(session: Session) -> dict[str, Any]:
@@ -91,7 +100,9 @@ def evaluate(session: Session, day: dt.date, platform: str = "google") -> list[d
         # 3) Keine Impressionen an einem Werktag
         if t["zero_impressions_weekday"] and day.weekday() < 5:
             prev_active = [r for r in rows if r.date < day and r.impressions > 0]
-            if prev_active and (last is None or last.impressions == 0):
+            # Plausibilität: 0 Impressionen bei Kosten oder Klicks ist ein unvollständiger Import, kein Auslieferungsproblem
+            incomplete = last is not None and last.impressions == 0 and (last.cost > 0 or last.clicks > 0)
+            if prev_active and not incomplete and (last is None or last.impressions == 0):
                 found.append(
                     dict(
                         rule="zero_impressions",
@@ -230,6 +241,27 @@ def evaluate(session: Session, day: dt.date, platform: str = "google") -> list[d
                 title=f"Primäre Conversion-Aktion „{ca.name}“ misst Seitenaufrufe",
                 message="Eine primäre Aktion mit Kategorie Seitenaufruf speist Smart Bidding mit Rauschen. Auf sekundär stellen oder entfernen.",
                 payload={"conversion_action": ca.external_id, "category": ca.category},
+            )
+        )
+
+    # 11) Zählmethode: primäre Aktion zählt jede Conversion statt eine pro Klick (Lead-Formular doppelt abgeschickt = 2)
+    many = session.execute(
+        select(ConversionAction).where(
+            ConversionAction.platform == platform,
+            ConversionAction.primary_for_goal.is_(True),
+            ConversionAction.status == "ENABLED",
+            ConversionAction.counting_type.in_(("MANY_PER_CLICK", "ALL", "MANY")),
+        )
+    ).scalars().all()
+    for ca in many:
+        found.append(
+            dict(
+                rule="counting_type",
+                key=ca.external_id,
+                severity="warn",
+                title=f"Conversion-Aktion „{ca.name}“ zählt jede Conversion",
+                message="Die Zählmethode steht auf „Jede“. Bei Leads zählt ein doppelt abgeschicktes Formular dann zweimal, und Smart Bidding optimiert auf aufgeblähte Zahlen. In Google Ads unter Ziele → Conversions → Aktion → Zählmethode auf „Eine“ stellen.",
+                payload={"conversion_action": ca.external_id, "counting_type": ca.counting_type},
             )
         )
 

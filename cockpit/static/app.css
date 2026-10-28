@@ -123,3 +123,15 @@ body.has-panel main { margin-right: var(--panel-w); max-width: none; }
 .triage-btns .btn.small { padding: .15rem .45rem; font-size: .74rem; }
 tr.decided td { opacity: .55; }
 tr.decided td.triage-cell { opacity: 1; }
+
+/* Plattform-Farbmarke: Google rot, Microsoft blau */
+.pf { display: inline-block; padding: .05rem .45rem; border-radius: 999px; font-size: .7rem; font-weight: 700; letter-spacing: .02em; vertical-align: middle; color: #fff; white-space: nowrap; }
+.pf-google { background: #CF2E2E; }
+.pf-microsoft { background: #1f6fd1; }
+/* Logo auf heller Fläche, da Schriftzug dunkel */
+.logo-chip { display: inline-flex; align-items: center; background: #fff; border-radius: 6px; padding: 3px 8px; }
+.logo-chip img { display: block; height: 26px; width: auto; }
+.nowrap { white-space: nowrap; }
+.badge.geloescht { background: #eee; color: #999; text-decoration: line-through; }
+.mem-toggle { display: inline-flex; align-items: center; gap: .25rem; color: var(--muted); margin: 0 .2rem 0 0; cursor: pointer; }
+.mem-toggle input { margin: 0; }

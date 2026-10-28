@@ -4,7 +4,7 @@
 {% block content %}
 <p class="small"><a href="/experimente">← Experimente</a></p>
 <h1>{{ e.name }} <span class="badge {{ e.status }}">{{ e.status }}</span></h1>
-<p class="sub">{{ e.platform }} · Test {{ cmp.windows.test_start }} bis {{ cmp.windows.test_end }} · Basis {{ cmp.windows.base_start }} bis {{ cmp.windows.base_end }} · angelegt von {{ e.created_by }}{% if e.scope.campaign_ids %} · Kampagnen {{ e.scope.campaign_ids | join(', ') }}{% endif %}</p>
+<p class="sub">{{ e.platform | pf }} · Test {{ cmp.windows.test_start }} bis {{ cmp.windows.test_end }} · Basis {{ cmp.windows.base_start }} bis {{ cmp.windows.base_end }} · angelegt von {{ e.created_by }}{% if e.scope.campaign_ids %} · Kampagnen {{ e.scope.campaign_ids | join(', ') }}{% endif %}</p>
 <div class="grid two">
   <div class="card">
     <h2>Hypothese</h2><p>{{ e.hypothesis or '–' }}</p>
