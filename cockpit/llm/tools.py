@@ -115,6 +115,16 @@ def get_paid_organic_overlap(session: Session, user: str, **args):
     return kpis.paid_organic_overlap(session, start, end, _platform(args))
 
 
+@tool(
+    "get_sea_revenue",
+    "Echte Ads-Leads aus Chris' Excel „Conversions SEA“ mit Nettoumsatz (Lexoffice) gegen die Werbekosten: Kosten je echtem Lead, ROAS, Abschlussquote. Umsatz kommt mit Wochen Verzug, daher lange Zeiträume (Standard 180 Tage).",
+    {"type": "object", "properties": PERIOD_PROPS, "additionalProperties": False},
+)
+def get_sea_revenue(session: Session, user: str, **args):
+    start, end = _period(args, 180)
+    return kpis.sea_revenue(session, start, end, _platform(args))
+
+
 @tool("get_campaigns", "Kampagnen mit Status, Gebotsstrategie, Budget, Enddatum und Kennzahlen im Zeitraum.", {"type": "object", "properties": PERIOD_PROPS, "additionalProperties": False})
 def get_campaigns(session: Session, user: str, **args):
     start, end = _period(args)

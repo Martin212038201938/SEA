@@ -10,6 +10,20 @@
   <div class="tile"><div class="label">Ads-Conversions</div><div class="value">{{ ov.conversions | num(1) }}</div></div>
   {% for ch, b in summary.by_channel.items() %}<div class="tile"><div class="label">{{ ch }}</div><div class="value">{{ b.leads }}</div><div class="delta muted">{{ b.gewonnen }} gewonnen · {{ b.revenue | eur }} Erlös</div></div>{% endfor %}
 </div>
+<div class="card" style="margin-bottom:1rem">
+  <h2>Wirtschaftlichkeit der Anzeigen ({{ rev_days }} Tage)</h2>
+  <p class="small muted">Quelle: Excel „Conversions SEA“ (Chris), Nettoumsätze trägt der Sales Assistant täglich aus Lexoffice ein{% if rev.last_sync %} · Stand {{ rev.last_sync[:16] | replace('T', ' ') }}{% else %} · noch nicht verbunden{% endif %}. Umsatz kommt mit Wochen Verzug, kurze Zeiträume unterschätzen den ROAS.</p>
+  <div class="grid tiles">
+    <div class="tile"><div class="label">Echte Ads-Leads</div><div class="value">{{ rev.ads_leads }}</div></div>
+    <div class="tile"><div class="label">Kosten je echtem Lead</div><div class="value">{{ rev.cost_per_real_lead | eur }}</div></div>
+    <div class="tile"><div class="label">Nettoumsatz</div><div class="value">{{ rev.net_revenue | eur }}</div><div class="delta muted">{{ rev.leads_with_revenue }} mit Umsatz</div></div>
+    <div class="tile"><div class="label">ROAS Umsatz</div><div class="value">{{ rev.roas_net_revenue if rev.roas_net_revenue is not none else '–' }}</div><div class="delta muted">Erlös-ROAS {{ rev.roas_margin if rev.roas_margin is not none else '–' }}</div></div>
+    <div class="tile"><div class="label">Ads-Kosten</div><div class="value">{{ rev.ads_cost | eur }}</div></div>
+  </div>
+  {% if rev.leads %}<table style="margin-top:.6rem"><tr><th>Anfrage</th><th>Unternehmen</th><th class="num">Nettoumsatz</th><th class="num">Erlös</th><th></th></tr>
+  {% for r in rev.leads %}<tr><td class="small">{{ r.date }}</td><td>{{ r.company or r.name }}</td><td class="num">{{ r.net_revenue | eur if r.net_revenue else '–' }}</td><td class="num">{{ r.margin | eur if r.margin else '–' }}</td><td class="small">{% if r.trello_url %}<a href="{{ r.trello_url }}" target="_blank" rel="noopener">Trello</a>{% endif %}</td></tr>{% endfor %}
+  </table>{% endif %}
+</div>
 <div class="card">
 <table>
   <tr><th>Datum</th><th>Unternehmen</th><th>Art</th><th>Quelle</th><th>Status / Kanal / Werte</th></tr>

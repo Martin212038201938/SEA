@@ -56,7 +56,7 @@ Leads, offenen Vorschlägen und Experimenten. Liefere zwei Dinge:
    ## Lage in drei Sätzen
    ## Zahlen der Woche (bzw. des Monats) – kleine Tabelle: Kosten, Klicks, Impressionen, CTR, CPC, Conversions, CPL, je mit Vergleich zur Vorperiode
    ## Was aufgefallen ist – 3 bis 6 Beobachtungen mit Zahl und Zeitraum
-   ## Leads und Wirtschaftlichkeit – Ads-Conversions gegen echte Leads (Trello/Bookings) stellen; wenn keine Lead-Daten vorliegen, das sagen
+   ## Leads und Wirtschaftlichkeit – Ads-Conversions gegen echte Ads-Leads aus sea_revenue_90d (Chris' Excel, Umsätze aus Lexoffice) stellen: Kosten je echtem Lead, Umsatz, ROAS; Trello nur für den Status aller Anfragen. Umsatz kommt mit Wochen Verzug, das bei der Bewertung sagen; wenn keine Daten vorliegen, das sagen
    ## Experimente – Stand laufender Experimente, Störfaktoren nennen
    ## Umgesetzte Vorschläge – ob eine Wirkung sichtbar ist oder es dafür zu früh ist
    ## Organisch und Paid – nur wenn organic_28d im Paket steht: Kannibalisierung (bezahlt trotz organisch Top 3), belegter Bedarf ohne Paid, Content-Lücken; sonst Abschnitt weglassen

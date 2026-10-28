@@ -318,6 +318,23 @@ class ChatMessage(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class SeaRevenue(Base):
+    """Eine Spalte der Excel „Conversions SEA“: ein Lead aus der Anzeigenwerbung mit Nettoumsatz (Lexoffice, per Sales Assistant)."""
+
+    __tablename__ = "sea_revenue"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    column: Mapped[str] = mapped_column(String(8), index=True)  # Excel-Spalte, z. B. B
+    date: Mapped[dt.date | None] = mapped_column(Date, nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String(255), default="")
+    email: Mapped[str] = mapped_column(String(255), default="", index=True)
+    company: Mapped[str] = mapped_column(String(255), default="")
+    trello_url: Mapped[str] = mapped_column(String(255), default="")
+    net_revenue: Mapped[float | None] = mapped_column(Float, nullable=True)  # Zeile „Status“
+    margin: Mapped[float | None] = mapped_column(Float, nullable=True)  # Zeile „Erlös“
+    synced_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+    __table_args__ = (UniqueConstraint("column"),)
+
+
 class ChatDigest(Base):
     """Tageszusammenfassung der Gespräche mit dem Analysten (Gedächtnis), je Nutzer und Tag."""
 

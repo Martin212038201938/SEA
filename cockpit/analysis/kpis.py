@@ -17,6 +17,7 @@ from ..models import (
     Lead,
     OrganicQueryDaily,
     SearchTermDaily,
+    SeaRevenue,
 )
 from ..util import pct_change, safe_div
 
@@ -443,6 +444,7 @@ def weekly_pack(session: Session, end: dt.date, platform: str = "all") -> dict[s
         "change_events_14d": change_events(session, end - dt.timedelta(days=13), end, platform, 100),
         "auction_insights": auction_insights(session, platform),
         "leads_28d": leads_summary(session, end - dt.timedelta(days=27), end),
+        "sea_revenue_90d": sea_revenue(session, end - dt.timedelta(days=89), end, platform),
     }
     try:
         ov = paid_organic_overlap(session, end - dt.timedelta(days=27), end, platform)
@@ -536,4 +538,33 @@ def paid_organic_overlap(session: Session, start: dt.date, end: dt.date, platfor
         "organisch_nah": nah[:60],
         "nur_paid": nur_paid[:40],
         "kannibalisierung_cost": round(sum(x["paid_cost"] for x in kann), 2),
+    }
+
+
+# ---------------------------------------------------------------- Umsatz aus „Conversions SEA“ (Excel)
+
+def sea_revenue(session: Session, start: dt.date, end: dt.date, platform: str = "all") -> dict[str, Any]:
+    """Ads-Leads aus Chris' Excel mit Nettoumsatz gegen die Werbekosten desselben Zeitraums.
+
+    Achtung Zeitversatz: Umsatz entsteht Wochen nach der Anfrage. Für ROAS deshalb längere Zeiträume (90+ Tage) nehmen."""
+    rows = session.execute(select(SeaRevenue).where(SeaRevenue.date >= start, SeaRevenue.date <= end).order_by(SeaRevenue.date)).scalars().all()
+    cost = float(session.execute(select(func.sum(CampaignDaily.cost)).where(_scope_filter(CampaignDaily, platform, start, end))).scalar() or 0.0)
+    revenue = sum(r.net_revenue or 0 for r in rows)
+    margin = sum(r.margin or 0 for r in rows)
+    won = [r for r in rows if (r.net_revenue or 0) > 0]
+    last_sync = session.execute(select(func.max(SeaRevenue.synced_at))).scalar()
+    return {
+        "period": {"start": start.isoformat(), "end": end.isoformat()},
+        "source": "Excel „Conversions SEA“ (Chris), Umsätze aus Lexoffice",
+        "last_sync": last_sync.isoformat(timespec="minutes") if last_sync else None,
+        "ads_leads": len(rows),
+        "leads_with_revenue": len(won),
+        "net_revenue": round(revenue, 2),
+        "margin": round(margin, 2),
+        "ads_cost": round(cost, 2),
+        "cost_per_real_lead": round(cost / len(rows), 2) if rows else None,
+        "roas_net_revenue": round(revenue / cost, 2) if cost else None,
+        "roas_margin": round(margin / cost, 2) if cost else None,
+        "close_rate": round(len(won) / len(rows), 3) if rows else None,
+        "leads": [{"column": r.column, "date": r.date.isoformat() if r.date else None, "company": r.company, "name": r.name, "net_revenue": r.net_revenue, "margin": r.margin, "trello_url": r.trello_url} for r in rows],
     }

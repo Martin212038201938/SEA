@@ -16,3 +16,4 @@ bingads>=13.0.22
 # Tests
 pytest>=8.0
 markdown>=3.6
+openpyxl>=3.1

@@ -121,7 +121,7 @@ def build(session: Session, path: str, query: dict[str, str] | None = None) -> d
         summary = kpis.leads_summary(session, start, end)
         summary.pop("leads", None)
         title, desc = "Leads", f"Leads {start}–{end} aus Trello (inkl. Bookings-Termine als Art „erstgespraech“) und manuell, mit Ads-Kennzahlen desselben Zeitraums. Kanal „unbekannt“ heißt: Quelle nicht zuordenbar."
-        data = {"period": period, "summary": summary, "ads_same_period": kpis.overview(session, start, end, "all"), "leads": [_lead_row(l) for l in rows]}
+        data = {"period": period, "summary": summary, "ads_same_period": kpis.overview(session, start, end, "all"), "sea_revenue_180d": kpis.sea_revenue(session, end - dt.timedelta(days=179), end), "leads": [_lead_row(l) for l in rows]}
     elif path == "/alerts":
         rows = session.execute(select(Alert).order_by(Alert.acknowledged, Alert.created_at.desc()).limit(60)).scalars().all()
         title, desc = "Alerts", "Auffälligkeiten aus dem Nachtlauf mit Schwellenwerten."

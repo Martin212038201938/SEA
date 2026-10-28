@@ -350,7 +350,9 @@ def leads_page(request: Request, user: str = Depends(current_user), session: Ses
     rows = session.execute(select(Lead).where(Lead.created_on >= start, Lead.created_on <= end).order_by(Lead.created_on.desc())).scalars().all()
     summary = kpis.leads_summary(session, start, end)
     ov = kpis.overview(session, start, end, "all")
-    return render(request, "leads.html", user, leads=rows, summary=summary, ov=ov, days=days, start=start, end=end)
+    rev_days = max(days, 180)
+    rev = kpis.sea_revenue(session, end - dt.timedelta(days=rev_days - 1), end)
+    return render(request, "leads.html", user, leads=rows, summary=summary, ov=ov, days=days, start=start, end=end, rev=rev, rev_days=rev_days)
 
 
 @app.post("/leads/neu")
@@ -573,6 +575,7 @@ def admin_page(request: Request, user: str = Depends(current_user), session: Ses
         "Microsoft Ads": settings.ms_ready,
         "Trello": settings.trello_ready,
         "Search Console": settings.gsc_ready,
+        "Excel Conversions SEA": settings.excel_ready,
         f"Sprachmodell ({settings.llm_provider})": settings.openai_ready,
         "Teams-Webhook": bool(settings.teams_webhook_url),
         "SMTP": bool(settings.smtp_host and settings.alert_email_to),

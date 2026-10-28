@@ -71,6 +71,13 @@ class Settings:
     gsc_enabled: bool = _bool("GSC_ENABLED", False)
     gsc_site: str = os.getenv("GSC_SITE", "sc-domain:copilotenschule.de")
 
+    # SharePoint/Excel „Conversions SEA“ (Lesen per App-Registrierung mit Sites.Selected)
+    graph_tenant_id: str = os.getenv("GRAPH_TENANT_ID", "")
+    graph_client_id: str = os.getenv("GRAPH_CLIENT_ID", "")
+    graph_client_secret: str = os.getenv("GRAPH_CLIENT_SECRET", "")
+    sea_excel_site: str = os.getenv("SEA_EXCEL_SITE", "yellowboatconsulting.sharepoint.com:/sites/Copilotenschule-Marketing")
+    sea_excel_path: str = os.getenv("SEA_EXCEL_PATH", "Chris/Conversions SEA.xlsx")
+
     ms_enabled: bool = _bool("MS_ADS_ENABLED", False)
     ms_developer_token: str = os.getenv("MS_ADS_DEVELOPER_TOKEN", "")
     ms_client_id: str = os.getenv("MS_ADS_CLIENT_ID", "")
@@ -133,6 +140,10 @@ class Settings:
     @property
     def gsc_ready(self) -> bool:
         return self.gsc_enabled and bool(self.gsc_site) and bool(self.google_service_account_file) and Path(self.google_service_account_file).is_file()
+
+    @property
+    def excel_ready(self) -> bool:
+        return all([self.graph_tenant_id, self.graph_client_id, self.graph_client_secret, self.sea_excel_site, self.sea_excel_path])
 
     @property
     def ms_ready(self) -> bool:

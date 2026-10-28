@@ -89,6 +89,14 @@ def nightly(session: Session, days_back: int = 7) -> JobRun:
                 session.commit()
             else:
                 jl("Trello nicht konfiguriert.")
+            if settings.excel_ready:
+                from .connectors import sea_excel
+
+                try:
+                    stats["sea_excel"] = sea_excel.pull(session, jl)
+                    session.commit()
+                except Exception as exc:
+                    jl(f"Excel Conversions SEA fehlgeschlagen: {str(exc)[:200]}")
             if settings.gsc_ready:
                 from .connectors import search_console
 
