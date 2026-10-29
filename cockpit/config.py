@@ -116,6 +116,7 @@ class Settings:
     smtp_user: str = os.getenv("SMTP_USER", "")
     smtp_password: str = os.getenv("SMTP_PASSWORD", "")
     mail_from: str = os.getenv("MAIL_FROM", "sea-cockpit@copilotenschule.de")
+    mail_reply_to: str = os.getenv("MAIL_REPLY_TO", "martin@yellow-boat.com")  # Antworten auf Cockpit-Mails
     alert_email_to: list[str] = field(
         default_factory=lambda: [a.strip() for a in os.getenv("ALERT_EMAIL_TO", "").split(",") if a.strip()]
     )

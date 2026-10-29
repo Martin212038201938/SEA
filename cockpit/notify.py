@@ -86,6 +86,8 @@ def send_mail(subject: str, text_md: str, to: list[str] | None = None) -> bool:
     msg["Subject"] = subject
     msg["From"] = settings.mail_from
     msg["To"] = ", ".join(to)
+    if settings.mail_reply_to:
+        msg["Reply-To"] = settings.mail_reply_to
     msg.set_content(text_md)
     msg.add_alternative(_md_to_html(text_md), subtype="html")
     try:
