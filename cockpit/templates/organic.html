@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% from "_macros.html" import period_nav %}
+{% from "_macros.html" import period_nav with context %}
 {% block title %}Organisch{% endblock %}
 {% block content %}
 <h1>Organisch und Paid</h1>
 <p class="sub">Organische Suchanfragen aus der Google Search Console gegen die bezahlten Suchbegriffe gestellt. Die Search Console liefert mit zwei bis drei Tagen Verzug.</p>
-{{ period_nav(days, platform, "/organisch") }}
+{{ period_nav(days, platform, "/organisch", start, end) }}
 {% if not gsc_ready %}<p class="err">Search Console ist nicht konfiguriert (GSC_ENABLED, Dienstkonto als Nutzer der Property).</p>{% endif %}
 <div class="grid tiles" style="margin-bottom:1rem">
   <div class="tile"><div class="label">Organische Klicks</div><div class="value">{{ summary.clicks }}</div></div>

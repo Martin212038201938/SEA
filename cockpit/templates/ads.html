@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% from "_macros.html" import period_nav %}
+{% from "_macros.html" import period_nav with context %}
 {% block title %}Anzeigen{% endblock %}
 {% block content %}
 <h1>Anzeigen, Auktion, Änderungen</h1>
-{{ period_nav(days, platform, "/anzeigen") }}
+{{ period_nav(days, platform, "/anzeigen", start, end) }}
 <div class="card">
 <h2>Anzeigen</h2>
 <table>

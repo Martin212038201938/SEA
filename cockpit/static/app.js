@@ -8,7 +8,7 @@
     if (!window.Chart) return;
     const el = document.getElementById(canvasId);
     if (!el || !series || !series.length) return;
-    const labels = series.map(d => d.date);
+    const labels = series.map(d => d.date.slice(8, 10) + "." + d.date.slice(5, 7) + ".");
     const datasets = [
       { label: "Kosten (€)", data: series.map(d => d.cost), borderColor: C.blau, backgroundColor: C.blau, yAxisID: "y", tension: .25, pointRadius: 0, borderWidth: 2 },
       { label: "Klicks", data: series.map(d => d.clicks), borderColor: C.tuerkis, backgroundColor: C.tuerkis, yAxisID: "y1", tension: .25, pointRadius: 0, borderWidth: 2 },
@@ -36,7 +36,13 @@
 
   window.seaLoadTimeseries = function (canvasId, params) {
     const q = new URLSearchParams(params || {}).toString();
-    fetch("/api/timeseries?" + q, { credentials: "same-origin" }).then(r => r.json()).then(data => window.seaChart(canvasId, data));
+    fetch("/api/timeseries?" + q, { credentials: "same-origin" }).then(r => r.json()).then(data => {
+      const empty = document.getElementById(canvasId + "-empty");
+      if (empty) empty.hidden = !!(data && data.length);
+      const cv = document.getElementById(canvasId);
+      if (cv) cv.hidden = !(data && data.length);
+      window.seaChart(canvasId, data);
+    });
   };
 
   // Auswahlkarten (Frage + Optionen) unter einer Antwort rendern; Klick sendet die Option als Nachricht

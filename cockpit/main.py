@@ -16,7 +16,7 @@ from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from . import __version__, jobs
@@ -67,10 +67,18 @@ def _int(value, default: int, lo: int = 1, hi: int = 730) -> int:
 
 def _period_from(request: Request, end_default: dt.date | None = None) -> tuple[dt.date, dt.date, int, str]:
     q = request.query_params
-    days = _int(q.get("days"), 28)
+    platform = q.get("platform") or "all"
+    if q.get("start") and q.get("end"):
+        # frei gewählter Zeitraum (Datumsfelder in der Zeitraumleiste); Länge bestimmt die Vergleichsperiode
+        start = parse_date(q.get("start"), yesterday())
+        end = parse_date(q.get("end"), yesterday())
+        if start > end:
+            start, end = end, start
+        start = max(start, end - dt.timedelta(days=729))
+        return start, end, (end - start).days + 1, platform
+    days = max(1, min(730, _int(q.get("days"), 28)))
     end = parse_date(q.get("end"), end_default or yesterday())
     start = parse_date(q.get("start"), end - dt.timedelta(days=days - 1))
-    platform = q.get("platform") or "all"
     return start, end, days, platform
 
 
@@ -145,8 +153,14 @@ def dashboard(request: Request, user: str = Depends(current_user), session: Sess
     start, end, days, platform = _period_from(request)
     cmp = kpis.compare_periods(session, days, platform, end)
     camps = kpis.campaigns(session, start, end, platform)
-    open_sugg = session.execute(select(Suggestion).where(Suggestion.status == "offen").order_by(Suggestion.priority, Suggestion.created_at.desc()).limit(5)).scalars().all()
-    alerts = session.execute(select(Alert).where(Alert.acknowledged.is_(False)).order_by(Alert.created_at.desc()).limit(6)).scalars().all()
+    sugg_stmt = select(Suggestion).where(Suggestion.status == "offen")
+    alert_stmt = select(Alert).where(Alert.acknowledged.is_(False))
+    if platform in ("google", "microsoft"):
+        # bei gewählter Plattform nur deren Meldungen; plattformübergreifende (ohne Plattform) bleiben sichtbar
+        sugg_stmt = sugg_stmt.where(or_(Suggestion.platform == platform, Suggestion.platform.is_(None), Suggestion.platform.in_(("", "all"))))
+        alert_stmt = alert_stmt.where(or_(Alert.platform == platform, Alert.platform.is_(None), Alert.platform.in_(("", "all"))))
+    open_sugg = session.execute(sugg_stmt.order_by(Suggestion.priority, Suggestion.created_at.desc()).limit(5)).scalars().all()
+    alerts = session.execute(alert_stmt.order_by(Alert.created_at.desc()).limit(6)).scalars().all()
     exps = session.execute(select(Experiment).where(Experiment.status == "laufend").order_by(Experiment.start_date.desc()).limit(3)).scalars().all()
     exp_cards = [exp_mod.compare(session, e) for e in exps]
     leads = kpis.leads_summary(session, start, end)
@@ -177,7 +191,10 @@ def api_timeseries(request: Request, user: str = Depends(current_user_api), sess
     q = request.query_params
     days = _int(q.get("days"), 90)
     end = parse_date(q.get("end"), yesterday())
-    start = end - dt.timedelta(days=days - 1)
+    start = parse_date(q.get("start"), end - dt.timedelta(days=days - 1))
+    if start > end:
+        start, end = end, start
+    days = (end - start).days + 1
     gran = q.get("granularity") or ("week" if days > 120 else "day")
     return kpis.timeseries(session, start, end, q.get("platform") or "all", gran)
 

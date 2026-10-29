@@ -1,9 +1,21 @@
-{% macro period_nav(days, platform, base) -%}
+{% macro period_nav(days, platform, base, start=None, end=None) -%}
+{# Mit Kontext importieren ("with context"), damit ein frei gewählter Zeitraum beim Plattformwechsel erhalten bleibt #}
+{% set custom = request is defined and request.query_params.get('start') and request.query_params.get('end') %}
+{% set range_q = ('start=' ~ start.isoformat() ~ '&end=' ~ end.isoformat()) if (custom and start and end) else ('days=' ~ days) %}
 <div class="period">
   <span class="muted">Zeitraum:</span>
-  {% for d in [7, 14, 28, 90, 180] %}<a href="{{ base }}?days={{ d }}&platform={{ platform }}" class="{{ 'active' if d == days else '' }}">{{ d }} Tage</a>{% endfor %}
+  {% for d in [7, 14, 28, 90, 180] %}<a href="{{ base }}?days={{ d }}&platform={{ platform }}" class="{{ 'active' if (d == days and not custom) else '' }}">{{ d }} Tage</a>{% endfor %}
+  {% if start and end %}
+  <form method="get" action="{{ base }}" class="range{{ ' active' if custom else '' }}" title="Eigener Zeitraum">
+    <input type="date" name="start" value="{{ start.isoformat() }}" aria-label="Von">
+    <span class="muted">bis</span>
+    <input type="date" name="end" value="{{ end.isoformat() }}" aria-label="Bis">
+    <input type="hidden" name="platform" value="{{ platform }}">
+    <button type="submit">Anwenden</button>
+  </form>
+  {% endif %}
   <span class="muted" style="margin-left:.8rem">Plattform:</span>
-  {% for p, l in [("all", "Alle"), ("google", "Google"), ("microsoft", "Microsoft")] %}<a href="{{ base }}?days={{ days }}&platform={{ p }}" class="{{ 'active' if p == platform else '' }}">{{ l }}</a>{% endfor %}
+  {% for p, l in [("all", "Alle"), ("google", "Google"), ("microsoft", "Microsoft")] %}<a href="{{ base }}?{{ range_q }}&platform={{ p }}" class="{{ 'active' if p == platform else '' }}">{{ l }}</a>{% endfor %}
 </div>
 {%- endmacro %}
 

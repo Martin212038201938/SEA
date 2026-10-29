@@ -27,6 +27,7 @@ from ..models import (
     SearchTermDaily,
 )
 from ..util import upsert
+from . import names
 
 log = logging.getLogger(__name__)
 PLATFORM = "google"
@@ -126,6 +127,16 @@ def pull_campaigns(session: Session, client, start: dt.date, end: dt.date) -> in
         )
         n += 1
     return n
+
+
+def sync_campaign_names(session: Session, client) -> int:
+    """Aktuellen Namen/Status/Strategie aller Kampagnen (auch ohne Impressionen) auf die Historie übertragen."""
+    q = "SELECT campaign.id, campaign.name, campaign.status, campaign.bidding_strategy_type FROM campaign WHERE campaign.status != 'REMOVED'"
+    info = {
+        str(r.campaign.id): {"name": r.campaign.name, "status": _enum_name(r.campaign.status), "bidding_strategy": _enum_name(r.campaign.bidding_strategy_type)}
+        for r in _rows(client, q)
+    }
+    return names.sync_campaigns(session, PLATFORM, info)
 
 
 def _share(v) -> float | None:
@@ -505,7 +516,7 @@ def pull_all(session: Session, start: dt.date, end: dt.date, log_fn: Callable[[s
         stats[name] = fn(session, client, start, end)
         log_fn(f"google {name}: {stats[name]} Zeilen")
         session.flush()
-    for name, fn in (("change_events", lambda: pull_change_events(session, client, 14)), ("conversion_actions", lambda: pull_conversion_actions(session, client))):
+    for name, fn in (("campaign_names", lambda: sync_campaign_names(session, client)), ("change_events", lambda: pull_change_events(session, client, 14)), ("conversion_actions", lambda: pull_conversion_actions(session, client))):
         try:
             stats[name] = fn()
         except Exception as exc:  # einzelner Teilabzug darf den Lauf nicht abbrechen

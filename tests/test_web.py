@@ -234,3 +234,40 @@ def test_suggestion_discard_and_platform_badge(client):
     assert f"/vorschlaege/{sid}\"" not in client.get("/vorschlaege?status=alle").text
     html = client.get("/").text
     assert 'class="pf pf-google"' in html and "/static/logo.svg" in html
+
+
+def test_custom_range_platform_filter_and_campaign_rename(client):
+    import datetime as dt
+
+    from cockpit.connectors import names
+    from cockpit.db import SessionLocal
+    from cockpit.models import Alert, CampaignDaily
+
+    _login(client)
+    # frei gewählter Zeitraum: Datumsfelder vorbelegt, Plattformlinks behalten den Zeitraum
+    html = client.get("/?start=2026-09-01&end=2026-09-30&platform=all").text
+    assert 'name="start" value="2026-09-01"' in html and 'name="end" value="2026-09-30"' in html
+    assert "/?start=2026-09-01&amp;end=2026-09-30&platform=microsoft" in html
+    assert "Verlauf 01.09.–30.09.2026" in html
+    ts = client.get("/api/timeseries?start=2026-09-01&end=2026-09-30").json()
+    assert all("2026-09-01" <= d["date"] <= "2026-09-30" for d in ts)
+    # vertauschte Daten werden korrigiert
+    assert client.get("/?start=2026-09-30&end=2026-09-01").status_code == 200
+
+    # Plattformfilter für Auffälligkeiten
+    with SessionLocal() as s:
+        s.add(Alert(date=dt.date(2026, 10, 27), platform="microsoft", severity="warnung", rule="t", title="Nur-Microsoft-Testalarm", message="x"))
+        s.commit()
+    assert "Nur-Microsoft-Testalarm" in client.get("/?platform=microsoft").text
+    assert "Nur-Microsoft-Testalarm" not in client.get("/?platform=google").text
+    assert "Nur-Microsoft-Testalarm" in client.get("/?platform=all").text
+
+    # Umbenennung wird auf die Historie übertragen, auch ohne neue Leistungszeilen
+    with SessionLocal() as s:
+        s.add(CampaignDaily(date=dt.date(2026, 10, 10), platform="microsoft", campaign_id="ms-1", campaign_name="Website traffic-Search-1", status="Active"))
+        s.commit()
+        assert names.sync_campaigns(s, "microsoft", {"ms-1": {"name": "MS Ads Bing_Search-1", "status": "Paused"}}) == 1
+        s.commit()
+        row = s.query(CampaignDaily).filter_by(platform="microsoft", campaign_id="ms-1").one()
+        assert (row.campaign_name, row.status) == ("MS Ads Bing_Search-1", "Paused")
+        assert names.sync_campaigns(s, "microsoft", {"ms-1": {"name": "MS Ads Bing_Search-1", "status": "Paused"}}) == 0

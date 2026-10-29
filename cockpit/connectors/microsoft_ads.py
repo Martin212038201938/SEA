@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..models import Account, AdDaily, AdGroupDaily, CampaignDaily, KeywordDaily, SearchTermDaily
 from ..util import upsert
+from . import names
 
 log = logging.getLogger(__name__)
 PLATFORM = "microsoft"
@@ -164,6 +165,22 @@ def _d(v: str) -> dt.date:
     raise ValueError(f"Unbekanntes Datum: {v}")
 
 
+def sync_campaign_names(session: Session, auth=None) -> int:
+    """Name, Status und Gebotsstrategie aller Kampagnen aus der Kampagnenverwaltung lesen (auch pausierte ohne
+    Impressionen) und auf die gespeicherte Historie übertragen."""
+    _sdk()
+    from bingads.service_client import ServiceClient
+
+    client = ServiceClient(service="CampaignManagementService", version=13, authorization_data=auth or _authorization(), environment=ENVIRONMENT)
+    resp = client.GetCampaignsByAccountId(AccountId=settings.ms_account_id, CampaignType=["Search Shopping DynamicSearchAds Audience PerformanceMax"])
+    items = getattr(resp, "Campaign", None) or []
+    info: dict[str, dict[str, str]] = {}
+    for c in items:
+        scheme = getattr(c, "BiddingScheme", None)
+        info[str(c.Id)] = {"name": c.Name or "", "status": str(c.Status or ""), "bidding_strategy": str(getattr(scheme, "Type", "") or "")}
+    return names.sync_campaigns(session, PLATFORM, info)
+
+
 def pull_all(session: Session, start: dt.date, end: dt.date, log_fn: Callable[[str], None] | None = None) -> dict[str, int]:
     log_fn = log_fn or (lambda s: log.info(s))
     _sdk()
@@ -195,6 +212,12 @@ def pull_all(session: Session, start: dt.date, end: dt.date, log_fn: Callable[[s
         )
     stats["campaigns"] = len(rows)
     log_fn(f"microsoft campaigns: {len(rows)}")
+    try:
+        stats["campaign_names"] = sync_campaign_names(session, auth)
+        log_fn(f"microsoft Kampagnennamen/-status abgeglichen: {stats['campaign_names']} geändert")
+    except Exception as exc:  # Namensabgleich darf den Abzug nicht abbrechen
+        log.warning("microsoft Namensabgleich fehlgeschlagen: %s", exc)
+        log_fn(f"microsoft Namensabgleich: FEHLER {str(exc)[:200]}")
 
     rows = _download_report(_request(client, "AdGroupPerformance", start, end, ["CampaignId", "CampaignName", "AdGroupId", "AdGroupName", "Status", *base_cols]))
     for r in rows:

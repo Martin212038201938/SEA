@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% from "_macros.html" import period_nav %}
+{% from "_macros.html" import period_nav with context %}
 {% block title %}Keywords{% endblock %}
 {% block content %}
 <h1>Keywords</h1>
-{{ period_nav(days, platform, "/keywords") }}
+{{ period_nav(days, platform, "/keywords", start, end) }}
 <div class="card">
 <table>
   <tr><th>Keyword</th><th>Anzeigengruppe</th><th>Status</th><th class="num">QF</th><th class="num">Impr.</th><th class="num">Klicks</th><th class="num">CTR</th><th class="num">CPC</th><th class="num">Kosten</th><th class="num">Conv.</th><th class="num">CPL</th></tr>

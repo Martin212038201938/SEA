@@ -1,20 +1,21 @@
 {% extends "base.html" %}
-{% from "_macros.html" import period_nav, tiles, delta %}
+{% from "_macros.html" import period_nav, tiles, delta with context %}
 {% block title %}Übersicht{% endblock %}
 {% block content %}
 <h1>Übersicht</h1>
 <p class="sub">{{ start.strftime('%d.%m.%Y') }} bis {{ end.strftime('%d.%m.%Y') }} · Datenstand {{ last_data.strftime('%d.%m.%Y') if last_data else 'keine Daten' }} · letzter Nightly-Job {{ status.last.nightly.when or 'nie' }} ({{ status.last.nightly.status }})</p>
-{{ period_nav(days, platform, "/") }}
+{{ period_nav(days, platform, "/", start, end) }}
 {{ tiles(cmp) }}
 
 <div class="grid two" style="margin-top:1rem">
   <div class="card">
-    <h2>Verlauf (90 Tage)</h2>
+    <h2>Verlauf {{ start.strftime('%d.%m.') }}–{{ end.strftime('%d.%m.%Y') }}{% if days > 120 %} <span class="small muted">(Wochenwerte)</span>{% endif %}</h2>
     <canvas id="ts" height="110"></canvas>
-    <script>document.addEventListener("DOMContentLoaded", () => seaLoadTimeseries("ts", { days: 90, platform: "{{ platform }}" }));</script>
+    <p id="ts-empty" class="muted" hidden>Keine Daten im gewählten Zeitraum.</p>
+    <script>document.addEventListener("DOMContentLoaded", () => seaLoadTimeseries("ts", { start: "{{ start.isoformat() }}", end: "{{ end.isoformat() }}", platform: "{{ platform }}" }));</script>
   </div>
   <div class="card">
-    <h2>Offene Vorschläge</h2>
+    <h2>Offene Vorschläge{% if platform != "all" %} <span class="small muted">({{ "Google" if platform == "google" else "Microsoft" }})</span>{% endif %}</h2>
     {% if suggestions %}
     <table>
       {% for s in suggestions %}
@@ -24,7 +25,7 @@
     <p class="small"><a href="/vorschlaege">Alle Vorschläge</a></p>
     {% else %}<p class="muted">Keine offenen Vorschläge. Der nächste Wochenreport erzeugt neue.</p>{% endif %}
 
-    <h2>Auffälligkeiten</h2>
+    <h2>Auffälligkeiten{% if platform != "all" %} <span class="small muted">({{ "Google" if platform == "google" else "Microsoft" }})</span>{% endif %}</h2>
     {% if alerts %}
     {% for a in alerts %}<div class="alert-row"><span class="badge {{ a.severity }}">{{ a.severity }}</span><div class="body">{{ a.platform | pf }} <strong>{{ a.title }}</strong><div class="small muted">{{ a.date.strftime('%d.%m.') }} · {{ a.message[:140] }}{% if a.message|length > 140 %}…{% endif %}</div></div></div>{% endfor %}
     <p class="small"><a href="/alerts">Alle Alerts</a></p>

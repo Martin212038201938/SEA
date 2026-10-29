@@ -135,3 +135,8 @@ tr.decided td.triage-cell { opacity: 1; }
 .badge.geloescht { background: #eee; color: #999; text-decoration: line-through; }
 .mem-toggle { display: inline-flex; align-items: center; gap: .25rem; color: var(--muted); margin: 0 .2rem 0 0; cursor: pointer; }
 .mem-toggle input { margin: 0; }
+.period form.range { display: inline-flex; gap: .3rem; align-items: center; margin-left: .4rem; padding: .15rem .4rem; border-radius: 6px; background: #e9edf5; }
+.period form.range.active { background: var(--blau); color: #fff; }
+.period form.range.active .muted { color: #dfe4f2; }
+.period form.range input[type=date] { font: inherit; font-size: .85rem; padding: .1rem .3rem; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: #1b2440; }
+.period form.range button { font: inherit; font-size: .85rem; padding: .15rem .55rem; border: 0; border-radius: 4px; background: #fff; color: var(--blau); cursor: pointer; }

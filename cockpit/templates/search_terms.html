@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% from "_macros.html" import period_nav %}
+{% from "_macros.html" import period_nav with context %}
 {% block title %}Suchbegriffe{% endblock %}
 {% block content %}
 <h1>Suchbegriffe</h1>
 <p class="sub">Tatsächliche Suchanfragen, die Anzeigen ausgelöst haben. Triage: „Ausschließen“ setzt den Begriff auf die <a href="/negativliste">Negativliste</a> ({{ triage.ausschliessen_offen }} offen, {{ triage.ausschliessen_angewendet }} eingetragen), „Behalten“ nimmt ihn aus der Liste, „Beobachten“ parkt ihn.</p>
-{{ period_nav(days, platform, "/suchbegriffe") }}
+{{ period_nav(days, platform, "/suchbegriffe", start, end) }}
 <form method="get" class="form-row card" style="margin-bottom:1rem">
   <input type="hidden" name="days" value="{{ days }}"><input type="hidden" name="platform" value="{{ platform }}">
   <div><label>Enthält</label><input name="q" value="{{ q }}"></div>
