@@ -11,6 +11,7 @@
   ms-auth                 OAuth-Refresh-Token für Microsoft Advertising erzeugen
   seed-demo               Synthetische Demo-Daten einspielen (DEMO_MODE)
   purge-demo              Demo-Daten löschen
+  sync-revenue [--dry-run]  Excel „Conversions SEA“ lesen, Auftragswert/Umsatz (Schritt A/B) in die Leads übernehmen
   serve                   Entwicklungsserver starten
 """
 from __future__ import annotations
@@ -108,6 +109,20 @@ def cmd_monthly(args):
         run = jobs.monthly(s, parse_date(args.end), send=not args.no_send)
         print(run.status)
         print(run.log)
+
+
+def cmd_sync_revenue(args):
+    from .connectors import sea_excel
+    from .db import SessionLocal, init_db
+
+    init_db()
+    with SessionLocal() as s:
+        sea_excel.pull(s, print, dry_run=args.dry_run)
+        if args.dry_run:
+            s.rollback()
+            print("Trockenlauf: nichts gespeichert.")
+        else:
+            s.commit()
 
 
 def cmd_test_connections(_args):
@@ -213,6 +228,9 @@ def main(argv=None):
         sp.add_argument("--no-send", action="store_true")
         sp.set_defaults(fn=fn)
     sub.add_parser("test-connections").set_defaults(fn=cmd_test_connections)
+    sr = sub.add_parser("sync-revenue")
+    sr.add_argument("--dry-run", action="store_true", help="nur anzeigen, was geschrieben würde")
+    sr.set_defaults(fn=cmd_sync_revenue)
     sub.add_parser("google-auth").set_defaults(fn=cmd_google_auth)
     sub.add_parser("ms-auth").set_defaults(fn=cmd_ms_auth)
     sub.add_parser("seed-demo").set_defaults(fn=cmd_seed_demo)

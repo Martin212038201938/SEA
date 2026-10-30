@@ -232,6 +232,10 @@ class Lead(Base):
     click_id: Mapped[str] = mapped_column(String(255), default="")
     campaign: Mapped[str] = mapped_column(String(255), default="")
     landing_page: Mapped[str] = mapped_column(String(255), default="")
+    # Herkunft von value/revenue, sobald aus der Excel übernommen (z. B. "excel:B A AG0123"); gesetzt = gesperrt,
+    # der Trello-Abgleich überschreibt den Wert dann nicht mehr
+    value_ref: Mapped[str] = mapped_column(String(255), default="")
+    revenue_ref: Mapped[str] = mapped_column(String(255), default="")
     updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
     __table_args__ = (UniqueConstraint("source", "external_id"),)
 
@@ -331,8 +335,27 @@ class SeaRevenue(Base):
     trello_url: Mapped[str] = mapped_column(String(255), default="")
     net_revenue: Mapped[float | None] = mapped_column(Float, nullable=True)  # Zeile „Status“
     margin: Mapped[float | None] = mapped_column(Float, nullable=True)  # Zeile „Erlös“
+    order_value: Mapped[float | None] = mapped_column(Float, nullable=True)  # Zeile „Auftragswert (gewonnen)“, Schritt A
+    order_doc: Mapped[str] = mapped_column(String(255), default="")  # Zeile „Beleg A“
+    final_revenue: Mapped[float | None] = mapped_column(Float, nullable=True)  # Zeile „Umsatz final (erledigt)“, Schritt B
+    final_doc: Mapped[str] = mapped_column(String(255), default="")  # Zeile „Beleg B“
     synced_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
     __table_args__ = (UniqueConstraint("column"),)
+
+
+class RevenueLog(Base):
+    """Protokoll jeder Übernahme eines Auftragswerts (Schritt A) oder finalen Umsatzes (Schritt B) in einen Lead."""
+
+    __tablename__ = "revenue_log"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    lead_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    column: Mapped[str] = mapped_column(String(8), default="")
+    step: Mapped[str] = mapped_column(String(1))  # A | B
+    amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    doc: Mapped[str] = mapped_column(String(255), default="")  # Lexoffice-Beleg(e) laut Excel
+    action: Mapped[str] = mapped_column(String(32))  # gesetzt | abweichung | kein-lead
+    note: Mapped[str] = mapped_column(Text, default="")
 
 
 class ChatDigest(Base):

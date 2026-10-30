@@ -227,9 +227,16 @@ def pull(session: Session) -> int:
         cands.append(_candidate(c, list_name, status))
     leads = merge_duplicates(cands)
     keep: set[str] = set()
+    locked = {(l.external_id): l for l in session.execute(select(Lead).where(Lead.source == "trello", (Lead.value_ref != "") | (Lead.revenue_ref != ""))).scalars()}
     for lead in leads:
         card_id = lead.pop("card_id")
         keep.add(card_id)
+        if (old := locked.get(card_id)) is not None:
+            # aus der Excel übernommene Werte (Schritt A/B) nicht mit Trello-Werten überschreiben
+            if old.value_ref:
+                lead.pop("value", None)
+            if old.revenue_ref:
+                lead.pop("revenue", None)
         upsert(session, Lead, {"source": "trello", "external_id": card_id}, lead)
     # Karten, die nicht mehr geführt werden (zusammengefasst, archiviert, in ignorierte Liste verschoben), entfernen
     removed = 0

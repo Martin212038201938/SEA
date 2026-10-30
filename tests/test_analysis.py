@@ -102,3 +102,64 @@ def test_sea_excel_parse_and_kpi(session, tmp_path):
     assert k["ads_leads"] == 2 and k["net_revenue"] == 7600.0 and k["leads_with_revenue"] == 1
     assert sea_excel._num("7.600,50") == 7600.5 and sea_excel._num("1520") == 1520.0
     session.rollback()
+
+
+def test_sea_excel_steps_a_b_idempotent(session):
+    import datetime as dt
+    import io
+    from openpyxl import Workbook
+    from cockpit.connectors import sea_excel
+    from cockpit.models import Lead, RevenueLog
+
+    wb = Workbook(); ws = wb.active
+    ws["B2"], ws["B10"], ws["B12"], ws["B18"] = dt.datetime(2026, 8, 20), "E-Mail: bach@aps-payment.de", "Unternehmen: APS", "https://trello.com/c/yaC4EpvK"
+    ws["C2"], ws["C10"], ws["C12"] = dt.datetime(2026, 9, 7), "E-Mail: kim@rajapack.de", "Unternehmen: Rajapack"
+    ws["D2"], ws["D10"] = dt.datetime(2026, 9, 9), "E-Mail: niemand@x.de"
+    ws["A20"], ws["A21"], ws["A23"], ws["A24"], ws["A25"], ws["A26"] = "Status", "Erlös", "Auftragswert (gewonnen)", "Beleg A", "Umsatz final (erledigt)", "Beleg B"
+    ws["B20"], ws["B21"] = 4500, "=B20*0.2"  # Formel ohne gespeicherten Wert, wie nach dem Speichern per Skript
+    ws["B23"], ws["B24"], ws["B25"], ws["B26"] = 5000, "AG0042 vom 01.09.2026", 4500, "RE0100, RE0101"
+    ws["C23"], ws["C24"] = 2800, "AG0050"
+    ws["D23"] = 1000
+    buf = io.BytesIO(); wb.save(buf)
+    rows = sea_excel.parse(buf.getvalue())
+    b = rows[0]
+    assert (b["order_value"], b["order_doc"], b["final_revenue"], b["final_doc"]) == (5000.0, "AG0042 vom 01.09.2026", 4500.0, "RE0100, RE0101")
+    assert b["margin"] == 900.0  # aus der Formel nachgerechnet, nicht der veraltete Wert
+    sea_excel.store(session, rows)
+
+    aps = Lead(source="trello", external_id="c1", created_on=dt.date(2026, 8, 21), status="gewonnen", url="https://trello.com/c/yaC4EpvK")
+    raja = Lead(source="trello", external_id="c2", created_on=dt.date(2026, 9, 9), status="gewonnen", email="kim@rajapack.de")
+    session.add_all([aps, raja]); session.flush()
+
+    dry = sea_excel.apply_to_leads(session, dry_run=True)
+    assert dry["gesetzt"] == 3 and aps.value == 0 and not aps.value_ref and session.query(RevenueLog).count() == 0
+
+    st = sea_excel.apply_to_leads(session)
+    assert st == {"gesetzt": 3, "abweichung": 0, "kein-lead": 1}
+    assert (aps.value, aps.revenue, raja.value, raja.revenue) == (5000.0, 4500.0, 2800.0, 0.0)
+    assert aps.value_ref.startswith("excel:B A AG0042") and aps.revenue_ref.startswith("excel:B B RE0100")
+    assert session.query(RevenueLog).filter_by(action="gesetzt").count() == 3
+
+    # zweiter Lauf: nichts mehr zu tun
+    assert sea_excel.apply_to_leads(session) == {"gesetzt": 0, "abweichung": 0, "kein-lead": 1}
+    # späterer abweichender Excel-Wert überschreibt nicht, wird nur protokolliert
+    session.query(sea_excel.SeaRevenue).filter_by(column="B").one().order_value = 5200
+    assert sea_excel.apply_to_leads(session)["abweichung"] == 1 and aps.value == 5000.0
+    session.rollback()
+
+
+def test_trello_sync_keeps_locked_values(session, monkeypatch):
+    import datetime as dt
+    from cockpit.connectors import trello
+    from cockpit.models import Lead
+
+    session.add(Lead(source="trello", external_id="66d4a1b2c3d4e5f6a7b8c9d0", created_on=dt.date(2026, 9, 1), status="gewonnen", value=5000, value_ref="excel:B A AG0042", revenue=0, revenue_ref=""))
+    session.flush()
+    lists = [{"id": "L1", "name": "Erledigt"}]
+    cards = [{"id": "66d4a1b2c3d4e5f6a7b8c9d0", "name": "APS", "desc": "Auftragswert: 100\nErlös: 50", "idList": "L1", "shortUrl": "https://trello.com/c/x", "labels": [], "closed": False}]
+    monkeypatch.setattr(trello, "_get", lambda path, **kw: lists if path.endswith("/lists") else cards)
+    monkeypatch.setattr(trello.settings, "trello_list_status_map", {"Erledigt": "gewonnen"})
+    trello.pull(session)
+    lead = session.query(Lead).filter_by(external_id="66d4a1b2c3d4e5f6a7b8c9d0").one()
+    assert lead.value == 5000 and lead.revenue == 50  # value gesperrt, revenue noch frei
+    session.rollback()

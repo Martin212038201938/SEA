@@ -566,5 +566,5 @@ def sea_revenue(session: Session, start: dt.date, end: dt.date, platform: str = 
         "roas_net_revenue": round(revenue / cost, 2) if cost else None,
         "roas_margin": round(margin / cost, 2) if cost else None,
         "close_rate": round(len(won) / len(rows), 3) if rows else None,
-        "leads": [{"column": r.column, "date": r.date.isoformat() if r.date else None, "company": r.company, "name": r.name, "net_revenue": r.net_revenue, "margin": r.margin, "trello_url": r.trello_url} for r in rows],
+        "leads": [{"column": r.column, "date": r.date.isoformat() if r.date else None, "company": r.company, "name": r.name, "net_revenue": r.net_revenue, "margin": r.margin, "order_value": r.order_value, "order_doc": r.order_doc, "final_revenue": r.final_revenue, "final_doc": r.final_doc, "trello_url": r.trello_url} for r in rows],
     }

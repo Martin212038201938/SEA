@@ -20,8 +20,8 @@
     <div class="tile"><div class="label">ROAS Umsatz</div><div class="value">{{ rev.roas_net_revenue if rev.roas_net_revenue is not none else '–' }}</div><div class="delta muted">Erlös-ROAS {{ rev.roas_margin if rev.roas_margin is not none else '–' }}</div></div>
     <div class="tile"><div class="label">Ads-Kosten</div><div class="value">{{ rev.ads_cost | eur }}</div></div>
   </div>
-  {% if rev.leads %}<table style="margin-top:.6rem"><tr><th>Anfrage</th><th>Unternehmen</th><th class="num">Nettoumsatz</th><th class="num">Erlös</th><th></th></tr>
-  {% for r in rev.leads %}<tr><td class="small">{{ r.date }}</td><td>{{ r.company or r.name }}</td><td class="num">{{ r.net_revenue | eur if r.net_revenue else '–' }}</td><td class="num">{{ r.margin | eur if r.margin else '–' }}</td><td class="small">{% if r.trello_url %}<a href="{{ r.trello_url }}" target="_blank" rel="noopener">Trello</a>{% endif %}</td></tr>{% endfor %}
+  {% if rev.leads %}<table style="margin-top:.6rem"><tr><th>Anfrage</th><th>Unternehmen</th><th class="num">Auftragswert</th><th class="num">Umsatz final</th><th class="num">Nettoumsatz</th><th class="num">Erlös</th><th></th></tr>
+  {% for r in rev.leads %}<tr><td class="small">{{ r.date }}</td><td>{{ r.company or r.name }}</td><td class="num" title="{{ r.order_doc }}">{{ r.order_value | eur if r.order_value else '–' }}</td><td class="num" title="{{ r.final_doc }}">{{ r.final_revenue | eur if r.final_revenue else '–' }}{% if r.order_value and r.final_revenue and (r.final_revenue - r.order_value)|abs > 0.5 %}<div class="small muted">{{ '%+.0f'|format(r.final_revenue - r.order_value) }} € ggü. Auftrag</div>{% endif %}</td><td class="num">{{ r.net_revenue | eur if r.net_revenue else '–' }}</td><td class="num">{{ r.margin | eur if r.margin else '–' }}</td><td class="small">{% if r.trello_url %}<a href="{{ r.trello_url }}" target="_blank" rel="noopener">Trello</a>{% endif %}</td></tr>{% endfor %}
   </table>{% endif %}
 </div>
 <div class="card">
