@@ -351,10 +351,10 @@ class RevenueLog(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow, index=True)
     lead_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     column: Mapped[str] = mapped_column(String(8), default="")
-    step: Mapped[str] = mapped_column(String(1))  # A | B
+    step: Mapped[str] = mapped_column(String(1))  # A | B | -
     amount: Mapped[float | None] = mapped_column(Float, nullable=True)
     doc: Mapped[str] = mapped_column(String(255), default="")  # Lexoffice-Beleg(e) laut Excel
-    action: Mapped[str] = mapped_column(String(32))  # gesetzt | abweichung | kein-lead
+    action: Mapped[str] = mapped_column(String(32))  # gesetzt | geändert | entfernt | kein-lead
     note: Mapped[str] = mapped_column(Text, default="")
 
 

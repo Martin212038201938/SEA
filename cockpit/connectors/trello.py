@@ -149,7 +149,7 @@ def _kind_for(fields: dict[str, str], desc: str, card_name: str = "", channel: s
     return "unbekannt"
 
 
-STATUS_RANK = {"gewonnen": 5, "angebot": 4, "kontaktiert": 3, "wiedervorlage": 2, "verloren": 2, "neu": 1}
+STATUS_RANK = {"gewonnen": 5, "angebot": 4, "kontaktiert": 3, "abgeschlossen": 2, "wiedervorlage": 2, "verloren": 2, "neu": 1}  # abgeschlossen = Liste „Erledigt“, sagt nichts über Gewinn
 KIND_RANK = {"erstgespraech": 4, "angebotsanfrage": 3, "kontaktformular": 2, "unbekannt": 0}
 
 
@@ -227,6 +227,7 @@ def pull(session: Session) -> int:
         cands.append(_candidate(c, list_name, status))
     leads = merge_duplicates(cands)
     keep: set[str] = set()
+    # Werte aus der Excel/Lexoffice (value_ref/revenue_ref gesetzt) und der daraus abgeleitete Status haben Vorrang
     locked = {(l.external_id): l for l in session.execute(select(Lead).where(Lead.source == "trello", (Lead.value_ref != "") | (Lead.revenue_ref != ""))).scalars()}
     for lead in leads:
         card_id = lead.pop("card_id")
@@ -237,6 +238,7 @@ def pull(session: Session) -> int:
                 lead.pop("value", None)
             if old.revenue_ref:
                 lead.pop("revenue", None)
+            lead.pop("status", None)
         upsert(session, Lead, {"source": "trello", "external_id": card_id}, lead)
     # Karten, die nicht mehr geführt werden (zusammengefasst, archiviert, in ignorierte Liste verschoben), entfernen
     removed = 0

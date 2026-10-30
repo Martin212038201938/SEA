@@ -7,8 +7,9 @@ Angebot), „Umsatz final (erledigt)“ und „Beleg B“ (Schritt B, Karte erle
 werden über die Beschriftung in Spalte A gesucht, damit eingefügte Zeilen nichts kaputt machen.
 Die Marge rechnet das Cockpit aus der Formel selbst nach: Speichert ein Skript die Datei, fehlen sonst neu berechnete
 Formelwerte und es stünde der alte Wert drin.
-Übernahme in die Leads (apply_to_leads): Zuordnung über den Trello-Link, sonst die E-Mail. Jeder Wert wird genau einmal
-gesetzt und dann gesperrt (Lead.value_ref / revenue_ref); spätere Abweichungen werden nur protokolliert.
+Übernahme in die Leads (apply_to_leads): Zuordnung über den Trello-Link, sonst die E-Mail. Die Excel (gepflegt aus
+Lexoffice) ist führend: Korrekturen werden nachgezogen und protokolliert; der Trello-Abgleich überschreibt diese Werte
+und den Status nicht (Lead.value_ref / revenue_ref).
 Zugriff: Microsoft Graph, App-only (Client Credentials), Berechtigung Sites.Selected mit Leserecht auf die eine Site.
 """
 from __future__ import annotations
@@ -194,35 +195,51 @@ def _lead_for(session: Session, row: SeaRevenue) -> Lead | None:
 
 
 def apply_to_leads(session: Session, dry_run: bool = False, log_fn=None) -> dict[str, int]:
-    """Schritt A (Auftragswert) und B (finaler Umsatz) aus der Excel in die Leads übernehmen, je einmal.
-    dry_run: nur berichten, nichts schreiben."""
+    """Auftragswert (A, angenommene Angebote) und Umsatz (B, bezahlte Rechnungen) aus der Excel in die Leads spiegeln.
+
+    Führend ist Lexoffice über die Excel: Werte werden bei jeder Korrektur nachgezogen, jede Änderung wird protokolliert.
+    Ein Lead mit Auftragswert oder Umsatz gilt als gewonnen, unabhängig von der Trello-Liste. Ohne Excel-Zeilen für
+    A/B gilt der Nettoumsatz (Zeile „Status“) als Umsatz. dry_run: nur berichten, nichts schreiben."""
     log_fn = log_fn or (lambda s: log.info(s))
-    stats = {"gesetzt": 0, "abweichung": 0, "kein-lead": 0}
+    stats = {"gesetzt": 0, "geändert": 0, "entfernt": 0, "kein-lead": 0}
     prefix = "TROCKENLAUF " if dry_run else ""
     for row in session.execute(select(SeaRevenue).order_by(SeaRevenue.column)).scalars():
-        steps = [("A", row.order_value, row.order_doc, "value", "value_ref"), ("B", row.final_revenue, row.final_doc, "revenue", "revenue_ref")]
-        if not any(v for _, v, *_ in steps):
-            continue
+        final = row.final_revenue if row.final_revenue is not None else (row.net_revenue if row.order_value is None else None)
+        steps = [("A", row.order_value, row.order_doc, "value", "value_ref"), ("B", final, row.final_doc or ("Zeile Status" if final is not None and row.final_revenue is None else ""), "revenue", "revenue_ref")]
         lead = _lead_for(session, row)
-        for step, amount, doc, field, ref_field in steps:
-            if not amount:
-                continue
-            ref = f"excel:{row.column} {step} {doc}".strip()[:255]
-            if lead is None:
-                action, note = "kein-lead", f"Kein Lead zu Spalte {row.column} ({row.company}, {row.trello_url or row.email})"
-            elif not getattr(lead, ref_field):
-                action, note = "gesetzt", f"{field} {getattr(lead, field) or 0:.2f} → {amount:.2f}"
+        if lead is None:
+            if any(v for _, v, *_ in steps):
+                stats["kein-lead"] += 1
+                note = f"Kein Lead zu Spalte {row.column} ({row.company}, {row.trello_url or row.email})"
+                log_fn(f"{prefix}Umsatz Spalte {row.column}: {note}")
                 if not dry_run:
-                    setattr(lead, field, amount)
-                    setattr(lead, ref_field, ref)
-            elif abs((getattr(lead, field) or 0) - amount) > 0.005:
-                action, note = "abweichung", f"{field} bleibt {getattr(lead, field):.2f} ({getattr(lead, ref_field)}), Excel sagt {amount:.2f}"
+                    session.add(RevenueLog(lead_id=None, column=row.column, step="-", amount=None, doc="", action="kein-lead", note=note))
+            continue
+        for step, amount, doc, field, ref_field in steps:
+            current, ref = getattr(lead, field) or 0.0, getattr(lead, ref_field)
+            amount = amount or 0.0
+            new_ref = f"excel:{row.column} {step} {doc}".strip()[:255] if amount else ""
+            if amount and not ref:
+                action = "gesetzt"
+            elif amount and abs(current - amount) > 0.005:
+                action = "geändert"
+            elif not amount and ref:
+                action = "entfernt"
             else:
-                continue  # schon übernommen, nichts zu tun
+                if amount and ref != new_ref and not dry_run:
+                    setattr(lead, ref_field, new_ref)  # nur Belegangabe aktualisiert
+                continue
+            note = f"{field} {current:.2f} → {amount:.2f}"
             stats[action] += 1
-            log_fn(f"{prefix}Umsatz {step} Lead {lead.id if lead else '-'} Spalte {row.column} {row.company}: {action}, {amount:.2f} €, Beleg {doc or '-'} – {note}")
+            log_fn(f"{prefix}Umsatz {step} Lead {lead.id} Spalte {row.column} {row.company}: {action}, {note}, Beleg {doc or '-'}")
             if not dry_run:
-                session.add(RevenueLog(lead_id=lead.id if lead else None, column=row.column, step=step, amount=amount, doc=doc, action=action, note=note))
+                setattr(lead, field, amount)
+                setattr(lead, ref_field, new_ref)
+                session.add(RevenueLog(lead_id=lead.id, column=row.column, step=step, amount=amount, doc=doc, action=action, note=note))
+        # Status folgt Lexoffice: Auftragswert oder Umsatz vorhanden = gewonnen
+        if not dry_run and ((lead.value or 0) > 0 or (lead.revenue or 0) > 0) and lead.status != "gewonnen":
+            log_fn(f"Status Lead {lead.id} {row.company}: {lead.status} → gewonnen (Lexoffice-Beleg vorhanden)")
+            lead.status = "gewonnen"
     if not dry_run:
         session.flush()
     return stats
@@ -234,7 +251,7 @@ def pull(session: Session, log_fn=None, dry_run: bool = False) -> int:
     n = store(session, rows)
     log_fn(f"Excel Conversions SEA: {n} Leads, Umsatz gesamt {sum(r['net_revenue'] or 0 for r in rows):.0f} €")
     stats = apply_to_leads(session, dry_run=dry_run, log_fn=log_fn)
-    log_fn(f"Excel → Leads: {stats['gesetzt']} übernommen, {stats['abweichung']} Abweichungen, {stats['kein-lead']} ohne Lead")
+    log_fn(f"Excel → Leads: {stats['gesetzt']} neu, {stats['geändert']} geändert, {stats['entfernt']} entfernt, {stats['kein-lead']} ohne Lead")
     return n
 
 
