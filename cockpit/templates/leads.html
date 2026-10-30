@@ -17,10 +17,10 @@
     <div class="tile"><div class="label">Echte Ads-Leads</div><div class="value">{{ rev.ads_leads }}</div></div>
     <div class="tile"><div class="label">Kosten je echtem Lead</div><div class="value">{{ rev.cost_per_real_lead | eur }}</div></div>
     <div class="tile"><div class="label">Nettoumsatz</div><div class="value">{{ rev.net_revenue | eur }}</div><div class="delta muted">{{ rev.leads_with_revenue }} mit Umsatz</div></div>
-    <div class="tile"><div class="label">ROAS Umsatz</div><div class="value">{{ rev.roas_net_revenue if rev.roas_net_revenue is not none else '–' }}</div><div class="delta muted">Erlös-ROAS {{ rev.roas_margin if rev.roas_margin is not none else '–' }}</div></div>
+    <div class="tile"><div class="label">ROAS Umsatz</div><div class="value">{{ rev.roas_net_revenue if rev.roas_net_revenue is not none else '–' }}</div><div class="delta muted">ROAS geschätzte Marge (20 %) {{ rev.roas_margin if rev.roas_margin is not none else '–' }}</div></div>
     <div class="tile"><div class="label">Ads-Kosten</div><div class="value">{{ rev.ads_cost | eur }}</div></div>
   </div>
-  {% if rev.leads %}<table style="margin-top:.6rem"><tr><th>Anfrage</th><th>Unternehmen</th><th class="num">Auftragswert</th><th class="num">Umsatz final</th><th class="num">Nettoumsatz</th><th class="num">Erlös</th><th></th></tr>
+  {% if rev.leads %}<table style="margin-top:.6rem"><tr><th>Anfrage</th><th>Unternehmen</th><th class="num">Auftragswert</th><th class="num">Umsatz final</th><th class="num">Nettoumsatz</th><th class="num" title="Pauschal 20 % vom Nettoumsatz laut Excel-Formel, keine echte Kostenrechnung">Marge geschätzt (20 %)</th><th></th></tr>
   {% for r in rev.leads %}<tr><td class="small">{{ r.date }}</td><td>{{ r.company or r.name }}</td><td class="num" title="{{ r.order_doc }}">{{ r.order_value | eur if r.order_value else '–' }}</td><td class="num" title="{{ r.final_doc }}">{{ r.final_revenue | eur if r.final_revenue else '–' }}{% if r.order_value and r.final_revenue and (r.final_revenue - r.order_value)|abs > 0.5 %}<div class="small muted">{{ '%+.0f'|format(r.final_revenue - r.order_value) }} € ggü. Auftrag</div>{% endif %}</td><td class="num">{{ r.net_revenue | eur if r.net_revenue else '–' }}</td><td class="num">{{ r.margin | eur if r.margin else '–' }}</td><td class="small">{% if r.trello_url %}<a href="{{ r.trello_url }}" target="_blank" rel="noopener">Trello</a>{% endif %}</td></tr>{% endfor %}
   </table>{% endif %}
 </div>
@@ -33,7 +33,7 @@
       <div style="flex:0 1 130px"><select name="status">{% for st in ["neu","kontaktiert","angebot","gewonnen","verloren"] %}<option {{ 'selected' if st == l.status else '' }}>{{ st }}</option>{% endfor %}</select></div>
       <div style="flex:0 1 130px"><select name="channel">{% for ch in ["unbekannt","google","microsoft","organisch","empfehlung","linkedin","seminarmarkt","bestandskunde"] %}<option {{ 'selected' if ch == l.channel else '' }}>{{ ch }}</option>{% endfor %}</select></div>
       <div style="flex:0 1 110px"><input name="value" type="number" step="1" value="{{ l.value | int }}" title="Auftragswert"></div>
-      <div style="flex:0 1 110px"><input name="revenue" type="number" step="1" value="{{ l.revenue | int }}" title="Erlös"></div>
+      <div style="flex:0 1 110px"><input name="revenue" type="number" step="1" value="{{ l.revenue | int }}" title="Umsatz netto"></div>
       <div style="flex:0 0 auto"><button class="btn small secondary" type="submit">Speichern</button></div></form></td></tr>
   {% else %}<tr><td colspan="5" class="muted">Keine Leads im Zeitraum.</td></tr>{% endfor %}
 </table>

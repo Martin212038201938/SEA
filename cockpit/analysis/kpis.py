@@ -556,6 +556,7 @@ def sea_revenue(session: Session, start: dt.date, end: dt.date, platform: str = 
     return {
         "period": {"start": start.isoformat(), "end": end.isoformat()},
         "source": "Excel „Conversions SEA“ (Chris), Umsätze aus Lexoffice",
+        "margin_note": "margin/roas_margin = pauschal 20 % vom Nettoumsatz (Excel-Formel), geschätzt, keine echte Kostenrechnung",
         "last_sync": last_sync.isoformat(timespec="minutes") if last_sync else None,
         "ads_leads": len(rows),
         "leads_with_revenue": len(won),
