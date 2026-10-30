@@ -28,9 +28,9 @@
 <table>
   <tr><th>Datum</th><th>Unternehmen</th><th>Art</th><th>Quelle</th><th>Status / Kanal / Werte</th></tr>
   {% for l in leads %}
-  <tr><td class="small">{{ l.created_on.strftime('%d.%m.%Y') }}</td><td>{{ l.company or l.name }}{% if l.url %} <a class="small" href="{{ l.url }}" target="_blank" rel="noopener">Trello</a>{% endif %}<div class="small muted">{{ l.notes[:80] }}</div></td><td class="small">{{ l.kind }}</td><td class="small">{{ l.source }}</td>
+  <tr><td class="small">{{ l.created_on.strftime('%d.%m.%Y') }}</td><td>{{ l.company or l.name }}{% if l.url %} <a class="small" href="{{ l.url }}" target="_blank" rel="noopener">Trello</a>{% endif %}<div class="small muted">{% if l.found_via %}Gefunden über: {{ l.found_via }}{% if l.click_id %} · Klick-ID {{ l.click_id_type }}{% endif %} · {% elif l.click_id %}Klick-ID {{ l.click_id_type }} · {% endif %}{{ l.notes[:80] }}</div></td><td class="small">{{ l.kind }}</td><td class="small">{{ l.source }}</td>
     <td><form method="post" action="/leads/{{ l.id }}" class="form-row" style="margin:0"><input type="hidden" name="csrf" value="{{ csrf }}">
-      <div style="flex:0 1 130px"><select name="status">{% for st in ["neu","kontaktiert","angebot","gewonnen","verloren"] %}<option {{ 'selected' if st == l.status else '' }}>{{ st }}</option>{% endfor %}</select></div>
+      <div style="flex:0 1 130px"><select name="status">{% for st in ["neu","kontaktiert","angebot","gewonnen","abgeschlossen","wiedervorlage","verloren"] %}<option {{ 'selected' if st == l.status else '' }}>{{ st }}</option>{% endfor %}</select></div>
       <div style="flex:0 1 130px"><select name="channel">{% for ch in ["unbekannt","google","microsoft","organisch","empfehlung","linkedin","seminarmarkt","bestandskunde"] %}<option {{ 'selected' if ch == l.channel else '' }}>{{ ch }}</option>{% endfor %}</select></div>
       <div style="flex:0 1 110px"><input name="value" type="number" step="1" value="{{ l.value | int }}" title="Auftragswert"></div>
       <div style="flex:0 1 110px"><input name="revenue" type="number" step="1" value="{{ l.revenue | int }}" title="Umsatz netto"></div>

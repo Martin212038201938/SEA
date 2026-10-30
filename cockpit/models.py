@@ -232,6 +232,7 @@ class Lead(Base):
     click_id: Mapped[str] = mapped_column(String(255), default="")
     campaign: Mapped[str] = mapped_column(String(255), default="")
     landing_page: Mapped[str] = mapped_column(String(255), default="")
+    found_via: Mapped[str] = mapped_column(String(64), default="")  # Selbstauskunft „Wie haben Sie uns gefunden?“ (Website-Formulare)
     # Herkunft von value/revenue, sobald aus der Excel übernommen (z. B. "excel:B A AG0123"); gesetzt = gesperrt,
     # der Trello-Abgleich überschreibt den Wert dann nicht mehr
     value_ref: Mapped[str] = mapped_column(String(255), default="")

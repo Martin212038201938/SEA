@@ -78,3 +78,15 @@ def test_click_id_lines():
     assert trello._channel_for(f2, [], "x", "") == "microsoft"
     f3 = trello.parse_description("Kanal: direkt\n")
     assert trello._channel_for(f3, [], "x", "") == "direkt"
+
+
+def test_found_via_from_card():
+    from cockpit.connectors import trello
+
+    desc = "Neue Kontaktanfrage\nVorname: Jana\nNachname: Eisert\nE-Mail: j@holm.de\nNachricht:\nText\nGefunden über: Google-Suche\nKanal: google\nKlick-ID: gclid=abc123"
+    f = trello.parse_description(desc)
+    assert f["gefunden über"] == "Google-Suche"
+    cand = trello._candidate({"id": "66d4a1b2c3d4e5f6a7b8c9d2", "name": "HOLM", "desc": desc, "shortUrl": "u", "labels": []}, "Frische Leads aus anderen Quellen", "neu")
+    assert cand["found_via"] == "Google-Suche" and cand["channel"] == "google" and cand["click_id"] == "abc123"
+    merged = trello.merge_duplicates([cand, {**cand, "card_id": "66d4a1b2c3d4e5f6a7b8c9d3", "found_via": ""}])
+    assert merged[0]["found_via"] == "Google-Suche"

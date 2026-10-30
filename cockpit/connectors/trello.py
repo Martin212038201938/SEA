@@ -38,7 +38,7 @@ DEFAULT_STATUS_MAP = {
     "abgelehnt": "verloren",
 }
 
-_FIELD = re.compile(r"^\s*(vorname|nachname|name|e-?mail|unternehmen|firma|telefon|kanal|auftragswert|wert|erlös|erloes|art|empfangsdatum|termin|service|buchungs-?id|klick-?id|kampagne|landingpage|referrer|suchbegriff)\s*:\s*(.+?)\s*$", re.I | re.M)
+_FIELD = re.compile(r"^\s*(vorname|nachname|name|e-?mail|unternehmen|firma|telefon|kanal|auftragswert|wert|erlös|erloes|art|empfangsdatum|termin|service|buchungs-?id|klick-?id|kampagne|landingpage|referrer|suchbegriff|gefunden über|gefunden ueber)\s*:\s*(.+?)\s*$", re.I | re.M)
 
 # Status „ignorieren“ = Liste enthält keine Leads (Ablagen, Verträge, Downloads); solche Karten werden übersprungen.
 IGNORE = "ignorieren"
@@ -176,6 +176,7 @@ def _candidate(card: dict[str, Any], list_name: str, status: str) -> dict[str, A
         "click_id": _click_id(fields)[1],
         "campaign": fields.get("kampagne", ""),
         "landing_page": fields.get("landingpage", ""),
+        "found_via": fields.get("gefunden über") or fields.get("gefunden ueber") or "",
         "notes": " ".join(x for x in (card.get("name", ""), f"[Liste: {list_name}]", f"[Termin: {fields['termin']}]" if fields.get("termin") else "") if x),
     }
 
@@ -205,6 +206,7 @@ def merge_duplicates(cands: list[dict[str, Any]]) -> list[dict[str, Any]]:
             lead["click_id_type"], lead["click_id"], lead["campaign"], lead["landing_page"] = with_click["click_id_type"], with_click["click_id"], with_click["campaign"], with_click["landing_page"]
         lead["company"] = next((c["company"] for c in members if c["company"]), "")
         lead["phone"] = next((c["phone"] for c in members if c["phone"]), "")
+        lead["found_via"] = next((c["found_via"] for c in members if c.get("found_via")), "")
         if len(members) > 1:
             lead["notes"] = f"{lead['notes']} [+{len(members) - 1} weitere Karten]"
         out.append(lead)

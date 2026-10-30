@@ -34,7 +34,7 @@ def _period(query: dict[str, str]) -> tuple[dt.date, dt.date, int, str]:
 
 
 def _lead_row(l: Lead) -> dict[str, Any]:
-    return {"id": l.id, "date": l.created_on.isoformat(), "source": l.source, "kind": l.kind, "status": l.status, "channel": l.channel, "company": l.company, "name": l.name, "value": l.value, "revenue": l.revenue, "notes": (l.notes or "")[:120]}
+    return {"id": l.id, "date": l.created_on.isoformat(), "source": l.source, "kind": l.kind, "status": l.status, "channel": l.channel, "found_via": l.found_via, "click_id_type": l.click_id_type, "company": l.company, "name": l.name, "value": l.value, "revenue": l.revenue, "notes": (l.notes or "")[:120]}
 
 
 def _alert_row(a: Alert) -> dict[str, Any]:
