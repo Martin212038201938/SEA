@@ -271,3 +271,77 @@ def test_custom_range_platform_filter_and_campaign_rename(client):
         row = s.query(CampaignDaily).filter_by(platform="microsoft", campaign_id="ms-1").one()
         assert (row.campaign_name, row.status) == ("MS Ads Bing_Search-1", "Paused")
         assert names.sync_campaigns(s, "microsoft", {"ms-1": {"name": "MS Ads Bing_Search-1", "status": "Paused"}}) == 0
+
+
+def test_chat_with_screenshot(client, monkeypatch, tmp_path):
+    import base64
+
+    from cockpit.llm import attachments, client as llm
+
+    monkeypatch.setattr(attachments, "UPLOAD_DIR", tmp_path)
+    # kleinstes gültiges PNG (1x1 Pixel), ohne Pillow
+    png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=="
+    _login(client)
+    seen = {}
+
+    def fake_run(system, msgs, tools, executor, model=None, **kw):
+        seen["msgs"] = msgs
+        return "Ich sehe einen roten Balken.", []
+
+    monkeypatch.setattr(llm, "run_with_tools", fake_run)
+    r = client.post("/api/chat", json={"question": "Was ist das?", "thread": "panel-chris", "images": [{"data": "data:image/png;base64," + png}]})
+    assert r.status_code == 200, r.text
+    last = seen["msgs"][-1]
+    assert last["role"] == "user" and last["images"][0]["media_type"] == "image/png" and last["content"].endswith("Was ist das?")
+    assert llm._anthropic_content(last)[0]["type"] == "image" and llm._openai_content(last)[0]["type"] == "input_image"
+    h = client.get("/api/chat/history?thread=panel-chris").json()
+    user_msg = [m for m in h["messages"] if m["role"] == "user"][-1]
+    assert len(user_msg["images"]) == 1
+    img = client.get(user_msg["images"][0])
+    assert img.status_code == 200 and img.content == base64.b64decode(png)
+    # fremder Thread und ungültige Namen: nicht ausliefern
+    assert client.get(user_msg["images"][0].replace("panel-chris", "panel-martin")).status_code == 404
+    assert client.get("/api/chat/bild/panel-chris/..%2F..%2Fcockpit.db").status_code == 404
+    # Folgefrage: altes Bild nur als Hinweis, nicht erneut als Bild
+    client.post("/api/chat", json={"question": "Und jetzt?", "thread": "panel-chris"})
+    assert not any(m.get("images") for m in seen["msgs"]) and any("[Screenshot]" in m["content"] for m in seen["msgs"] if m["role"] == "user")
+    # nur Bilder, kein Text: geht; falscher Dateityp: 400
+    assert client.post("/api/chat", json={"question": "", "thread": "panel-chris", "images": [{"data": png}]}).status_code == 200
+    bad = client.post("/api/chat", json={"question": "x", "thread": "panel-chris", "images": [{"data": base64.b64encode(b"%PDF-1.4 kein Bild").decode()}]})
+    assert bad.status_code == 400 and "PNG" in bad.json()["detail"]
+
+
+def test_suggestion_later_with_reminder(client, monkeypatch):
+    import datetime as dt
+
+    from cockpit import jobs, notify
+    from cockpit.db import SessionLocal
+    from cockpit.models import Suggestion
+    from cockpit.util import today_local
+
+    _login(client)
+    with SessionLocal() as s:
+        sug = Suggestion(source="manual", title="Testvorschlag Wiedervorlage", category="sonstiges", steps=[], priority=2, confidence="mittel")
+        s.add(sug); s.commit(); sid = sug.id
+    target = (today_local() + dt.timedelta(days=10)).isoformat()
+    page = client.get(f"/vorschlaege/{sid}").text
+    token = page.split('name="csrf" value="')[1].split('"')[0]
+    r = client.post(f"/vorschlaege/{sid}/status", data={"status": "später", "remind_on": target, "note": "nach Budgetrunde", "csrf": token}, follow_redirects=False)
+    assert r.status_code == 303
+    with SessionLocal() as s:
+        sug = s.get(Suggestion, sid)
+        assert sug.status == "später" and sug.remind_on.isoformat() == target
+    assert "Wiedervorlage" in client.get("/vorschlaege?status=später").text
+
+    sent = []
+    monkeypatch.setattr(notify, "broadcast", lambda title, text, link: sent.append((title, text)) or {"mail": True})
+    with SessionLocal() as s:
+        assert jobs.remind_due_suggestions(s) == 0  # noch nicht fällig
+        s.get(Suggestion, sid).remind_on = today_local()
+        s.flush()
+        assert jobs.remind_due_suggestions(s) == 1
+        sug = s.get(Suggestion, sid)
+        assert sug.status == "offen" and sug.reminded_at is not None and "Wiedervorlage" in sug.status_note
+        assert jobs.remind_due_suggestions(s) == 0  # nur einmal
+        s.commit()
+    assert len(sent) == 1 and "Testvorschlag Wiedervorlage" in sent[0][1]

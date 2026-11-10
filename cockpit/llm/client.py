@@ -95,9 +95,26 @@ def _anthropic_create(client, **kwargs):
         return client.messages.create(**kwargs)
 
 
+def _anthropic_content(m: dict[str, Any]) -> Any:
+    """Bilder (m["images"], neutrales Format aus attachments.for_model) als Bild-Blöcke vor den Text setzen."""
+    if not m.get("images"):
+        return m["content"]
+    blocks: list[dict[str, Any]] = [{"type": "image", "source": {"type": "base64", "media_type": i["media_type"], "data": i["data"]}} for i in m["images"]]
+    blocks.append({"type": "text", "text": m["content"] or "Siehe Bild."})
+    return blocks
+
+
+def _openai_content(m: dict[str, Any]) -> Any:
+    if not m.get("images"):
+        return m["content"]
+    parts: list[dict[str, Any]] = [{"type": "input_image", "image_url": f"data:{i['media_type']};base64,{i['data']}"} for i in m["images"]]
+    parts.append({"type": "input_text", "text": m["content"] or "Siehe Bild."})
+    return parts
+
+
 def _anthropic_run_with_tools(system, messages, tools, executor, model, max_rounds, on_tool):
     client = _anthropic()
-    convo: list[dict[str, Any]] = [{"role": m["role"], "content": m["content"]} for m in messages]
+    convo: list[dict[str, Any]] = [{"role": m["role"], "content": _anthropic_content(m)} for m in messages]
     calls: list[dict[str, Any]] = []
     a_tools = _to_anthropic_tools(tools)
     for _ in range(max_rounds):
@@ -185,7 +202,7 @@ def _item_to_dict(item) -> dict[str, Any]:
 
 def _openai_run_with_tools(system, messages, tools, executor, model, max_rounds, on_tool):
     client = _openai()
-    input_items: list[dict[str, Any]] = [{"role": m["role"], "content": m["content"]} for m in messages]
+    input_items: list[dict[str, Any]] = [{"role": m["role"], "content": _openai_content(m)} for m in messages]
     calls: list[dict[str, Any]] = []
     for _ in range(max_rounds):
         resp = client.responses.create(model=model, instructions=system, tools=tools, input=input_items, store=False, include=["reasoning.encrypted_content"])

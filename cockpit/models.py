@@ -277,6 +277,8 @@ class Suggestion(Base):
     status_changed_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
     status_by: Mapped[str] = mapped_column(String(64), default="")
     status_note: Mapped[str] = mapped_column(Text, default="")
+    remind_on: Mapped[dt.date | None] = mapped_column(Date, nullable=True, index=True)  # Wiedervorlage bei Status „später“
+    reminded_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
     verification: Mapped[Any] = mapped_column(JSON, default=dict)  # Abgleich mit Änderungsverlauf
     experiment_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     report_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -296,6 +298,8 @@ class Alert(Base):
     payload: Mapped[Any] = mapped_column(JSON, default=dict)
     sent_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
     acknowledged: Mapped[bool] = mapped_column(Boolean, default=False)
+    # letzter Tag, an dem derselbe Befund (Regel + Schlüssel) noch zutraf; solange er anhält, kein neuer Alert
+    last_seen: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
     __table_args__ = (UniqueConstraint("date", "platform", "rule", "key"),)
 
 
@@ -320,6 +324,7 @@ class ChatMessage(Base):
     user: Mapped[str] = mapped_column(String(64), default="")
     role: Mapped[str] = mapped_column(String(16))  # user/assistant/tool
     content: Mapped[str] = mapped_column(Text, default="")
+    attachments: Mapped[Any] = mapped_column(JSON, nullable=True)  # Bilder (Dateinamen unter data/chat-uploads/<thread>/)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
 
 

@@ -27,7 +27,7 @@
 
     <h2>Auffälligkeiten{% if platform != "all" %} <span class="small muted">({{ "Google" if platform == "google" else "Microsoft" }})</span>{% endif %}</h2>
     {% if alerts %}
-    {% for a in alerts %}<div class="alert-row"><span class="badge {{ a.severity }}">{{ a.severity }}</span><div class="body">{{ a.platform | pf }} <strong>{{ a.title }}</strong><div class="small muted">{{ a.date.strftime('%d.%m.') }} · {{ a.message[:140] }}{% if a.message|length > 140 %}…{% endif %}</div></div></div>{% endfor %}
+    {% for a in alerts %}<div class="alert-row"><span class="badge {{ a.severity }}">{{ a.severity }}</span><div class="body">{{ a.platform | pf }} <strong>{{ a.title }}</strong><div class="small muted">{{ a.date.strftime('%d.%m.') }}{% if a.last_seen and a.last_seen > a.date %}–{{ a.last_seen.strftime('%d.%m.') }}{% endif %} · {{ a.message[:140] }}{% if a.message|length > 140 %}…{% endif %}</div></div></div>{% endfor %}
     <p class="small"><a href="/alerts">Alle Alerts</a></p>
     {% else %}<p class="muted">Keine unbestätigten Auffälligkeiten.</p>{% endif %}
   </div>

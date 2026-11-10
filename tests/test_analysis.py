@@ -171,3 +171,30 @@ def test_trello_sync_keeps_locked_values(session, monkeypatch):
     other = session.query(Lead).filter_by(external_id="66d4a1b2c3d4e5f6a7b8c9d1").one()
     assert other.status == "abgeschlossen"  # „Erledigt“ heißt nicht gewonnen
     session.rollback()
+
+
+def test_alerts_reported_once_while_ongoing(session):
+    import datetime as dt
+
+    from cockpit.analysis import anomalies
+    from cockpit.models import Alert
+
+    cand = [{"rule": "zero_impressions", "key": "c1", "severity": "warnung", "title": "Keine Impressionen", "message": "x"}]
+    d = dt.date(2026, 11, 1)
+    assert len(anomalies.persist(session, d, "microsoft", cand)) == 1
+    assert len(anomalies.persist(session, d, "microsoft", cand)) == 0  # gleicher Tag
+    for i in range(1, 5):  # hält vier Tage an: kein neuer Alert
+        assert anomalies.persist(session, d + dt.timedelta(days=i), "microsoft", cand) == []
+    a = session.query(Alert).filter_by(platform="microsoft", rule="zero_impressions", key="c1").one()
+    assert a.date == d and a.last_seen == d + dt.timedelta(days=4)
+    # einen Tag Pause, dann wieder da: neuer Alert
+    assert len(anomalies.persist(session, d + dt.timedelta(days=6), "microsoft", cand)) == 1
+
+    # Bereinigung alter Tageswiederholungen
+    for i in range(3):
+        session.add(Alert(date=dt.date(2026, 10, 1) + dt.timedelta(days=i), platform="google", rule="r", key="k", severity="info", title="t", message="m"))
+    session.flush()
+    assert anomalies.collapse_repeats(session) == 2
+    g = session.query(Alert).filter_by(platform="google", rule="r").one()
+    assert g.date == dt.date(2026, 10, 1) and g.last_seen == dt.date(2026, 10, 3)
+    session.rollback()

@@ -87,21 +87,86 @@
       return div;
     }
     function esc(s) { return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+    const att = seaAttach(form, ta);
     form.addEventListener("submit", function (e) {
       e.preventDefault();
-      const q = ta.value.trim();
-      if (!q) return;
-      add("user", esc(q).replace(/\n/g, "<br>"));
-      ta.value = ""; btn.disabled = true;
+      const q = ta.value.trim(), images = att.get();
+      if (!q && !images.length) return;
+      add("user", imgsHtml(images.map(i => i.data)) + esc(q).replace(/\n/g, "<br>"));
+      ta.value = ""; att.clear(); btn.disabled = true;
       const pending = add("assistant", "<span class='muted'>Analysiere …</span>");
-      fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ question: q, thread }) })
-        .then(r => r.json())
+      fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ question: q, thread, images }) })
+        .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(new Error(d.detail || r.status))))
         .then(d => { pending.innerHTML = d.answer_html || esc(d.answer || ""); if (d.tool_calls && d.tool_calls.length) { const t = document.createElement("div"); t.className = "toolcalls"; t.textContent = "Werkzeuge: " + d.tool_calls.map(x => x.name).join(", "); pending.appendChild(t); } renderChoices(pending, d.choices, q2 => { ta.value = q2; form.requestSubmit(); }); })
         .catch(err => { pending.innerHTML = "<span class='err'>Fehler: " + esc(String(err)) + "</span>"; })
         .finally(() => { btn.disabled = false; ta.focus(); });
     });
     ta.addEventListener("keydown", function (e) { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") form.requestSubmit(); });
   };
+
+  // Screenshots im Chat: Einfügen (Strg+V), Ziehen & Ablegen oder Button. Verkleinert im Browser (längste Kante 1600 px).
+  function seaAttach(form, ta) {
+    const MAX = 4, EDGE = 1600;
+    let items = [];
+    const strip = document.createElement("div");
+    strip.className = "attach-strip";
+    form.parentNode.insertBefore(strip, form);
+    const file = document.createElement("input");
+    file.type = "file"; file.accept = "image/png,image/jpeg,image/webp,image/gif"; file.multiple = true; file.hidden = true;
+    const pick = document.createElement("button");
+    pick.type = "button"; pick.className = "btn ghost attach-btn"; pick.title = "Screenshot anhängen (oder mit Strg+V einfügen)"; pick.textContent = "Bild";
+    form.insertBefore(pick, form.querySelector("button[type=submit]"));
+    form.appendChild(file);
+    function render() {
+      strip.innerHTML = "";
+      items.forEach((it, i) => {
+        const w = document.createElement("div"); w.className = "attach-item";
+        const img = document.createElement("img"); img.src = it.data; img.alt = "Screenshot " + (i + 1);
+        const x = document.createElement("button"); x.type = "button"; x.textContent = "×"; x.title = "Entfernen";
+        x.addEventListener("click", () => { items.splice(i, 1); render(); });
+        w.appendChild(img); w.appendChild(x); strip.appendChild(w);
+      });
+      strip.hidden = !items.length;
+    }
+    function shrink(blob) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob), img = new Image();
+        img.onload = () => {
+          const k = Math.min(1, EDGE / Math.max(img.width, img.height));
+          const c = document.createElement("canvas");
+          c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          let data = c.toDataURL("image/png");
+          if (data.length > 4000000) data = c.toDataURL("image/jpeg", 0.88);  // Fotos/große Bilder kleiner als JPEG
+          resolve(data);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Bild nicht lesbar")); };
+        img.src = url;
+      });
+    }
+    function addFiles(files) {
+      [...files].filter(f => f.type.startsWith("image/")).forEach(f => {
+        if (items.length >= MAX) return;
+        shrink(f).then(data => { if (items.length < MAX) { items.push({ data }); render(); } }).catch(() => alert("Bild konnte nicht gelesen werden"));
+      });
+    }
+    pick.addEventListener("click", () => file.click());
+    file.addEventListener("change", () => { addFiles(file.files); file.value = ""; });
+    ta.addEventListener("paste", e => {
+      const files = [...(e.clipboardData ? e.clipboardData.items : [])].filter(i => i.kind === "file" && i.type.startsWith("image/")).map(i => i.getAsFile());
+      if (files.length) { e.preventDefault(); addFiles(files); }
+    });
+    form.addEventListener("dragover", e => { e.preventDefault(); form.classList.add("drop"); });
+    form.addEventListener("dragleave", () => form.classList.remove("drop"));
+    form.addEventListener("drop", e => { e.preventDefault(); form.classList.remove("drop"); addFiles(e.dataTransfer.files); });
+    render();
+    return { get: () => items.map(it => ({ data: it.data })), clear: () => { items = []; render(); }, count: () => items.length };
+  }
+  document.addEventListener("click", e => { const im = e.target.closest("img.msg-img"); if (im && !im.src.startsWith("data:")) window.open(im.src, "_blank", "noopener"); });
+  function imgsHtml(list) {
+    return (list || []).map(src => '<img class="msg-img" src="' + src + '" alt="Screenshot">').join("");
+  }
 
   // Suchbegriffs-Triage: Entscheidung per Klick, Zeile wird markiert (kein Reload)
   window.seaTriage = function (tableId) {
@@ -161,19 +226,21 @@
         .then(r => r.json())
         .then(d => {
           (d.messages || []).forEach((m, i, arr) => {
-            const div = add(m.role, m.role === "assistant" ? m.html : esc(m.text).replace(/\n/g, "<br>"));
+            const div = add(m.role, m.role === "assistant" ? m.html : imgsHtml(m.images) + esc(m.text).replace(/\n/g, "<br>"));
             if (m.role === "assistant" && i === arr.length - 1) renderChoices(div, m.choices, send);  // nur die letzte Karte bleibt klickbar
           });
           log.scrollTop = log.scrollHeight;
         }).catch(() => {});
     }
+    let att = null;
     function send(q) {
-      if (!q) return;
-      add("user", esc(q).replace(/\n/g, "<br>"));
-      ta.value = ""; btn.disabled = true;
-      const pending = add("assistant", "<span class='muted'>Schaue mir die Daten an …</span>");
-      fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ question: q, thread, page: pageInfo(), memory: memToggle ? memToggle.checked : true }) })
-        .then(r => r.json())
+      const images = att ? att.get() : [];
+      if (!q && !images.length) return;
+      add("user", imgsHtml(images.map(i => i.data)) + esc(q).replace(/\n/g, "<br>"));
+      ta.value = ""; if (att) att.clear(); btn.disabled = true;
+      const pending = add("assistant", "<span class='muted'>" + (images.length ? "Schaue mir den Screenshot und die Daten an …" : "Schaue mir die Daten an …") + "</span>");
+      fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ question: q, thread, page: pageInfo(), memory: memToggle ? memToggle.checked : true, images }) })
+        .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(new Error(d.detail || r.status))))
         .then(d => {
           pending.innerHTML = d.answer_html || esc(d.answer || "");
           const meta = [];
@@ -189,6 +256,7 @@
 
     const title = document.querySelector("main h1");
     if (ctxEl) ctxEl.textContent = "Kontext: " + (title ? title.textContent.trim() : location.pathname);
+    att = seaAttach(form, ta);
     form.addEventListener("submit", e => { e.preventDefault(); send(ta.value.trim()); });
     ta.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") form.requestSubmit(); });
     document.getElementById("panel-chips").addEventListener("click", e => { const b = e.target.closest("button[data-q]"); if (b) send(b.dataset.q); });

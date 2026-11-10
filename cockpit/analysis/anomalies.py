@@ -269,16 +269,44 @@ def evaluate(session: Session, day: dt.date, platform: str = "google") -> list[d
 
 
 def persist(session: Session, day: dt.date, platform: str, candidates: list[dict[str, Any]]) -> list[Alert]:
-    """Neue Alerts speichern; vorhandene (gleiche Regel, gleicher Schlüssel, gleicher Tag) überspringen."""
+    """Neue Alerts speichern. Ein Befund (gleiche Plattform, Regel, Schlüssel) wird nur einmal gemeldet, solange er
+    ohne Unterbrechung anhält: Trifft er am Vortag noch zu (last_seen), wird nur last_seen fortgeschrieben, kein neuer
+    Alert, keine Mail. War er mindestens einen Tag weg und kommt wieder, gibt es einen neuen Alert."""
     created: list[Alert] = []
     for c in candidates:
-        exists = session.execute(
-            select(Alert).where(Alert.date == day, Alert.platform == platform, Alert.rule == c["rule"], Alert.key == str(c["key"]))
+        key = str(c["key"])
+        prev = session.execute(
+            select(Alert).where(Alert.platform == platform, Alert.rule == c["rule"], Alert.key == key, Alert.date <= day).order_by(Alert.date.desc()).limit(1)
         ).scalar_one_or_none()
-        if exists:
-            continue
-        a = Alert(date=day, platform=platform, rule=c["rule"], key=str(c["key"]), severity=c["severity"], title=c["title"], message=c["message"], payload=c.get("payload", {}))
+        if prev is not None:
+            seen = prev.last_seen or prev.date
+            if seen >= day - dt.timedelta(days=1):  # derselbe Tag oder ununterbrochen seit gestern
+                if day > seen:
+                    prev.last_seen = day
+                continue
+        a = Alert(date=day, last_seen=day, platform=platform, rule=c["rule"], key=key, severity=c["severity"], title=c["title"], message=c["message"], payload=c.get("payload", {}))
         session.add(a)
         created.append(a)
     session.flush()
     return created
+
+
+def collapse_repeats(session: Session) -> int:
+    """Einmalige Bereinigung: tägliche Wiederholungen desselben Befunds zu einem Alert zusammenfassen.
+    Der älteste Alert einer ununterbrochenen Serie bleibt (last_seen = letzter Tag), die Wiederholungen werden gelöscht."""
+    removed = 0
+    rows = session.execute(select(Alert).order_by(Alert.platform, Alert.rule, Alert.key, Alert.date)).scalars().all()
+    head: Alert | None = None
+    for a in rows:
+        same = head is not None and (head.platform, head.rule, head.key) == (a.platform, a.rule, a.key)
+        if same and a.date <= (head.last_seen or head.date) + dt.timedelta(days=1):
+            head.last_seen = max(head.last_seen or head.date, a.last_seen or a.date)
+            head.acknowledged = head.acknowledged and a.acknowledged
+            session.delete(a)
+            removed += 1
+            continue
+        head = a
+        if head.last_seen is None:
+            head.last_seen = head.date
+    session.flush()
+    return removed

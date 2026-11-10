@@ -233,6 +233,7 @@ def suggestion_dict(s: Suggestion) -> dict[str, Any]:
         "confidence": s.confidence,
         "effort": s.effort,
         "status": s.status,
+        "remind_on": s.remind_on.isoformat() if s.remind_on else None,
         "status_note": s.status_note,
         "status_changed_at": s.status_changed_at.isoformat(timespec="minutes") if s.status_changed_at else None,
         "verification": s.verification,
@@ -429,8 +430,8 @@ def update_experiment(session: Session, user: str, **args):
 
 @tool(
     "update_suggestion_status",
-    "Status eines Vorschlags setzen: umgesetzt (mit Datum), verworfen, später, offen. Bei 'umgesetzt' wird der Änderungsverlauf der folgenden Tage auf eine passende Änderung geprüft.",
-    {"type": "object", "properties": {"suggestion_id": {"type": "integer"}, "status": {"type": "string", "enum": ["offen", "umgesetzt", "verworfen", "später", "geloescht"]}, "note": {"type": "string", "description": "Bei verworfen/geloescht: Begründung, damit der Vorschlag nicht wiederkommt"}, "implemented_on": {"type": "string", "description": "Datum der Umsetzung YYYY-MM-DD (Standard heute)"}}, "required": ["suggestion_id", "status"], "additionalProperties": False},
+    "Status eines Vorschlags setzen: umgesetzt (mit Datum), verworfen, später (mit Wiedervorlage-Datum), offen. Bei 'umgesetzt' wird der Änderungsverlauf der folgenden Tage auf eine passende Änderung geprüft. Bei 'später' erinnert das Cockpit am Wiedervorlage-Tag per Mail und setzt den Vorschlag wieder auf offen; frag nach dem Datum, wenn der Nutzer keins nennt (Standard 14 Tage).",
+    {"type": "object", "properties": {"suggestion_id": {"type": "integer"}, "status": {"type": "string", "enum": ["offen", "umgesetzt", "verworfen", "später", "geloescht"]}, "note": {"type": "string", "description": "Bei verworfen/geloescht: Begründung, damit der Vorschlag nicht wiederkommt"}, "implemented_on": {"type": "string", "description": "Datum der Umsetzung YYYY-MM-DD (Standard heute)"}, "remind_on": {"type": "string", "description": "Nur bei 'später': Wiedervorlage YYYY-MM-DD (Standard heute + 14 Tage)"}}, "required": ["suggestion_id", "status"], "additionalProperties": False},
     writes=True,
 )
 def update_suggestion_status(session: Session, user: str, **args):
@@ -440,6 +441,12 @@ def update_suggestion_status(session: Session, user: str, **args):
     s.status = args["status"]
     s.status_by = user
     s.status_note = args.get("note") or s.status_note
+    if args["status"] == "später":
+        remind = parse_date(args.get("remind_on"), None) or (today_local() + dt.timedelta(days=14))
+        s.remind_on = max(remind, today_local() + dt.timedelta(days=1))  # frühestens morgen
+        s.reminded_at = None
+    else:
+        s.remind_on = None
     when = parse_date(args.get("implemented_on"), today_local())
     s.status_changed_at = dt.datetime.combine(when, dt.time(12, 0)) if args["status"] == "umgesetzt" else utcnow()
     if args["status"] == "umgesetzt":

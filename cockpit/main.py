@@ -13,7 +13,7 @@ from typing import Any
 import markdown as md_lib
 from markupsafe import Markup
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, or_, select
@@ -24,7 +24,7 @@ from .analysis import anomalies, experiments as exp_mod, kpis, triage
 from .auth import SESSION_COOKIE, SESSION_MAX_AGE, authenticate, check_csrf, csrf_token, current_user, current_user_api, make_session_cookie
 from .config import settings
 from .db import get_session, init_db
-from .llm import chat as chat_mod, choices as chat_choices
+from .llm import attachments as attachments_mod, chat as chat_mod, choices as chat_choices
 from .llm.tools import call as tool_call, experiment_dict, suggestion_dict
 from .mcp_server import mcp_asgi_app, mcp_server, mount_path
 from .models import Alert, Experiment, JobRun, Lead, Report, Suggestion, utcnow
@@ -222,13 +222,13 @@ def suggestion_detail(sid: int, request: Request, user: str = Depends(current_us
     exp = session.get(Experiment, s.experiment_id) if s.experiment_id else None
     exp_cmp = exp_mod.compare(session, exp) if exp else None
     report = session.get(Report, s.report_id) if s.report_id else None
-    return render(request, "suggestion_detail.html", user, s=s, exp=exp, exp_cmp=exp_cmp, report=report)
+    return render(request, "suggestion_detail.html", user, s=s, exp=exp, exp_cmp=exp_cmp, report=report, tomorrow=(today_local() + dt.timedelta(days=1)).isoformat())
 
 
 @app.post("/vorschlaege/{sid}/status")
-def suggestion_status(sid: int, request: Request, status: str = Form(...), note: str = Form(""), implemented_on: str = Form(""), csrf: str = Form(...), user: str = Depends(current_user), session: Session = Depends(get_session)):
+def suggestion_status(sid: int, request: Request, status: str = Form(...), note: str = Form(""), implemented_on: str = Form(""), remind_on: str = Form(""), csrf: str = Form(...), user: str = Depends(current_user), session: Session = Depends(get_session)):
     check_csrf(request, csrf)
-    tool_call(session, user, "update_suggestion_status", {"suggestion_id": sid, "status": status, "note": note, "implemented_on": implemented_on or None})
+    tool_call(session, user, "update_suggestion_status", {"suggestion_id": sid, "status": status, "note": note, "implemented_on": implemented_on or None, "remind_on": remind_on or None})
     return RedirectResponse(f"/vorschlaege/{sid}", status_code=303)
 
 
@@ -491,14 +491,29 @@ async def api_chat(request: Request, user: str = Depends(current_user_api), sess
     body = await _json_body(request)
     question = (body.get("question") or "").strip()
     thread = _own_thread(user, body.get("thread") or f"{user}-{today_local().isoformat()}")
-    if not question:
+    try:
+        images = attachments_mod.decode(body.get("images"))
+    except attachments_mod.AttachmentError as exc:
+        raise HTTPException(400, str(exc))
+    if not question and not images:
         raise HTTPException(400, "Frage fehlt")
     page = body.get("page") if isinstance(body.get("page"), dict) else None
     if page:
         page = {"path": str(page.get("path") or "/")[:200], "query": {str(k)[:40]: str(v)[:120] for k, v in (page.get("query") or {}).items()} if isinstance(page.get("query"), dict) else {}}
-    result = chat_mod.ask(session, user, thread, question, page, memory=body.get("memory", True) is not False)
+    result = chat_mod.ask(session, user, thread, question, page, memory=body.get("memory", True) is not False, images=images)
     result["answer_html"] = md(result["answer"])
     return JSONResponse(result)
+
+
+@app.get("/api/chat/bild/{thread}/{name}")
+def api_chat_image(thread: str, name: str, user: str = Depends(current_user_api)):
+    """Screenshot aus dem Chat ausliefern; nur für eigene Threads."""
+    if _own_thread(user, thread) != thread:
+        raise HTTPException(404)
+    p = attachments_mod.path_for(thread, name)
+    if p is None:
+        raise HTTPException(404)
+    return FileResponse(p, headers={"Cache-Control": "private, max-age=86400"})
 
 
 @app.get("/api/chat/history")
@@ -511,7 +526,7 @@ def api_chat_history(request: Request, user: str = Depends(current_user_api), se
             clean, cards = chat_choices.parse(m.content)
             out.append({"role": "assistant", "html": md(clean), "choices": cards})
         elif m.role == "user":
-            out.append({"role": "user", "text": m.content})
+            out.append({"role": "user", "text": m.content, "images": [f"/api/chat/bild/{thread}/{n}" for n in (m.attachments or [])]})
     return JSONResponse({"thread": thread, "messages": out})
 
 

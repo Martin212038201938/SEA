@@ -25,7 +25,7 @@ document.querySelectorAll(".discard-form").forEach(f => f.addEventListener("subm
     <td>{{ s.platform | pf }} <a href="/vorschlaege/{{ s.id }}"><strong>{{ s.title }}</strong></a><div class="small muted">{{ s.rationale[:160] }}{% if s.rationale|length > 160 %}…{% endif %}</div></td>
     <td class="small">{{ s.category }}</td><td class="small">{{ s.effort }}</td><td class="small">{{ s.confidence }}</td>
     <td class="small">{{ s.source }} · {{ s.created_at.strftime('%d.%m.%Y') }}</td>
-    <td><span class="badge {{ s.status }}">{{ s.status }}</span>{% if s.status in ('verworfen','geloescht') and s.status_note %}<div class="small muted">{{ s.status_note[:80] }}</div>{% endif %}</td>
+    <td><span class="badge {{ s.status }}">{{ s.status }}</span>{% if s.status == 'später' and s.remind_on %}<div class="small muted">Wiedervorlage {{ s.remind_on.strftime('%d.%m.%Y') }}</div>{% elif s.status == 'offen' and s.reminded_at %}<div class="small muted">wieder offen (Wiedervorlage)</div>{% endif %}{% if s.status in ('verworfen','geloescht') and s.status_note %}<div class="small muted">{{ s.status_note[:80] }}</div>{% endif %}</td>
     <td class="nowrap">{% if s.status not in ('verworfen','geloescht') %}
       <form method="post" action="/vorschlaege/{{ s.id }}/verwerfen" class="discard-form" style="display:inline">
         <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="reason" value="">

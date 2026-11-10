@@ -21,7 +21,9 @@
       <div class="form-row">
         <div><label>Status</label><select name="status">{% for st in ["offen","umgesetzt","später","verworfen","geloescht"] %}<option {{ 'selected' if st == s.status else '' }}>{{ st }}</option>{% endfor %}</select></div>
         <div><label>Umgesetzt am</label><input type="date" name="implemented_on"></div>
+        <div><label>Wiedervorlage am (bei „später“)</label><input type="date" name="remind_on" value="{{ s.remind_on.isoformat() if s.remind_on else '' }}" min="{{ tomorrow }}"></div>
       </div>
+      {% if s.status == 'später' and s.remind_on %}<p class="small muted">Erinnerung am {{ s.remind_on.strftime('%d.%m.%Y') }} per Mail, danach steht der Vorschlag wieder unter „Offen“.</p>{% endif %}
       <label>Notiz</label><textarea name="note" placeholder="z. B. nur Teil 1 und 2 umgesetzt; bei verworfen: warum">{{ s.status_note }}</textarea>
       <button class="btn" type="submit">Speichern</button>
     </form>

@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import ChatMessage
-from . import choices, client as llm, memory as memory_mod, page_context
+from . import attachments, choices, client as llm, memory as memory_mod, page_context
 from .prompts import BANTER, BANTER_QUOTA_OPEN, BANTER_QUOTA_USED, CHAT_SYSTEM
 from ..util import get_setting, set_setting, today_local
 from .tools import call, openai_tools
@@ -32,12 +32,25 @@ def _is_model_missing(exc: Exception) -> bool:
     return "model" in s and ("not_found" in s or "not found" in s or "does not exist" in s)
 
 
-def ask(session: Session, user: str, thread_id: str, question: str, page: dict[str, Any] | None = None, memory: bool = True) -> dict[str, Any]:
-    """page = {"path": "/suchbegriffe", "query": {"days": "28", "waste": "1"}} (vom Panel) oder None (große Chat-Seite)."""
-    session.add(ChatMessage(thread_id=thread_id, user=user, role="user", content=question))
+def _with_attachment_note(m: ChatMessage) -> str:
+    n = len(m.attachments or [])
+    if not n:
+        return m.content
+    note = "[Screenshot]" if n == 1 else f"[{n} Screenshots]"
+    return f"{note} {m.content}".strip()
+
+
+def ask(session: Session, user: str, thread_id: str, question: str, page: dict[str, Any] | None = None, memory: bool = True, images: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """page = {"path": "/suchbegriffe", "query": {"days": "28", "waste": "1"}} (vom Panel) oder None (große Chat-Seite).
+    images = geprüfte Bilder aus attachments.decode(); sie gehen nur mit dieser Frage ans Modell."""
+    images = images or []
+    stored = attachments.store(thread_id, images) if images else []
+    if images and not question:
+        question = "Was siehst du auf dem Screenshot, und was bedeutet es für unsere Kampagnen?"
+    session.add(ChatMessage(thread_id=thread_id, user=user, role="user", content=question, attachments=stored or None))
     session.flush()
-    msgs = [{"role": m.role, "content": m.content} for m in history(session, thread_id) if m.role in ("user", "assistant")]
-    if not msgs or msgs[-1]["content"] != question:
+    msgs = [{"role": m.role, "content": _with_attachment_note(m) if m.role == "user" else m.content} for m in history(session, thread_id) if m.role in ("user", "assistant")]
+    if not msgs or msgs[-1]["role"] != "user":
         msgs.append({"role": "user", "content": question})
     # Anthropic verlangt abwechselnde Rollen und einen Nutzer-Start
     cleaned: list[dict[str, Any]] = []
@@ -49,6 +62,8 @@ def ask(session: Session, user: str, thread_id: str, question: str, page: dict[s
     while cleaned and cleaned[0]["role"] != "user":
         cleaned.pop(0)
     msgs = cleaned
+    if images and msgs:
+        msgs[-1]["images"] = attachments.for_model(images)
 
     system = CHAT_SYSTEM
     joke_key = f"banter_joke_{user}_{today_local().isoformat()}"

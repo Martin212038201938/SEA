@@ -38,7 +38,7 @@ def _lead_row(l: Lead) -> dict[str, Any]:
 
 
 def _alert_row(a: Alert) -> dict[str, Any]:
-    return {"id": a.id, "date": a.date.isoformat(), "severity": a.severity, "rule": a.rule, "title": a.title, "message": a.message, "acknowledged": a.acknowledged}
+    return {"id": a.id, "date": a.date.isoformat(), "last_seen": (a.last_seen or a.date).isoformat(), "severity": a.severity, "rule": a.rule, "title": a.title, "message": a.message, "acknowledged": a.acknowledged}
 
 
 def build(session: Session, path: str, query: dict[str, str] | None = None) -> dict[str, Any]:

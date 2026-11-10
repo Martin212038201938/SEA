@@ -57,6 +57,32 @@ def _run(session: Session, name: str, fn: Callable[[Session, JobLogger], dict]) 
 
 # ---------------------------------------------------------------- nightly
 
+def remind_due_suggestions(session: Session, jl=None) -> int:
+    """Vorschläge im Status „später“, deren Wiedervorlage heute oder früher fällig ist: wieder auf „offen“ setzen
+    und einmal per Mail/Teams erinnern."""
+    jl = jl or (lambda m: log.info(m))
+    today = today_local()
+    due = session.execute(
+        select(Suggestion).where(Suggestion.status == "später", Suggestion.remind_on.is_not(None), Suggestion.remind_on <= today, Suggestion.reminded_at.is_(None)).order_by(Suggestion.priority, Suggestion.remind_on)
+    ).scalars().all()
+    if not due:
+        jl("Wiedervorlagen: keine fällig")
+        return 0
+    lines = []
+    for s in due:
+        plat = "Microsoft" if s.platform == "microsoft" else "Google"
+        lines.append(f"- **[{plat}]** P{s.priority} [{s.title}]({settings.base_url}/vorschlaege/{s.id}) (Wiedervorlage {s.remind_on.strftime('%d.%m.%Y')})" + (f": {s.status_note[:160]}" if s.status_note else ""))
+        s.status = "offen"
+        s.status_changed_at = utcnow()
+        s.reminded_at = utcnow()
+        s.status_note = (f"Wiedervorlage {s.remind_on.strftime('%d.%m.%Y')} fällig. " + (s.status_note or "")).strip()
+    session.flush()
+    text = "Diese Vorschläge hattest du auf „später“ gesetzt. Sie stehen jetzt wieder unter „Offen“:\n\n" + "\n".join(lines)
+    sent = notify.broadcast(f"SEA-Cockpit: {len(due)} Wiedervorlage(n) fällig", text, "/vorschlaege")
+    jl(f"Wiedervorlagen: {len(due)} fällig, wieder offen, Benachrichtigung {sent}")
+    return len(due)
+
+
 def nightly(session: Session, days_back: int = 7) -> JobRun:
     def body(session: Session, jl: JobLogger) -> dict:
         stats: dict = {}
@@ -124,6 +150,8 @@ def nightly(session: Session, days_back: int = 7) -> JobRun:
                 s.verification = verify_against_changes(session, s, s.status_changed_at.date())
                 checked += 1
         jl(f"Umsetzungs-Abgleich: {checked} Vorschläge geprüft")
+
+        stats["reminders"] = remind_due_suggestions(session, jl)
 
         # Alerts: nur hier (nicht im Wochenreport) und mit Datenreife – ausgewertet wird vorgestern, nicht gestern
         created_total = []
