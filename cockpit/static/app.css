@@ -151,3 +151,6 @@ tr.decided td.triage-cell { opacity: 1; }
 form.drop { outline: 2px dashed var(--blau); outline-offset: 2px; }
 .msg-img { display: block; max-width: 100%; max-height: 220px; border-radius: 4px; margin-bottom: .35rem; border: 1px solid rgba(255,255,255,.4); cursor: zoom-in; }
 .attach-btn { background: #fff; color: var(--blau); border: 1px solid var(--line); }
+
+.ts-head { margin: .9rem 0 .3rem; font-size: .95rem; }
+.ts-head:first-of-type { margin-top: .2rem; }

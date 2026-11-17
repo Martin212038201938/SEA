@@ -10,9 +10,13 @@
 <div class="grid two" style="margin-top:1rem">
   <div class="card">
     <h2>Verlauf {{ start.strftime('%d.%m.') }}–{{ end.strftime('%d.%m.%Y') }}{% if days > 120 %} <span class="small muted">(Wochenwerte)</span>{% endif %}</h2>
-    <canvas id="ts" height="110"></canvas>
-    <p id="ts-empty" class="muted" hidden>Keine Daten im gewählten Zeitraum.</p>
-    <script>document.addEventListener("DOMContentLoaded", () => seaLoadTimeseries("ts", { start: "{{ start.isoformat() }}", end: "{{ end.isoformat() }}", platform: "{{ platform }}" }));</script>
+    {# Google und Microsoft getrennt untereinander; bei gewählter Plattform nur diese #}
+    {% for pf_key, pf_label in [("google", "Google"), ("microsoft", "Microsoft")] if platform in ("all", pf_key) %}
+    <h3 class="ts-head">{{ pf_key | pf }}</h3>
+    <canvas id="ts-{{ pf_key }}" height="110"></canvas>
+    <p id="ts-{{ pf_key }}-empty" class="muted" hidden>Keine {{ pf_label }}-Daten im gewählten Zeitraum.</p>
+    <script>document.addEventListener("DOMContentLoaded", () => seaLoadTimeseries("ts-{{ pf_key }}", { start: "{{ start.isoformat() }}", end: "{{ end.isoformat() }}", platform: "{{ pf_key }}" }));</script>
+    {% endfor %}
   </div>
   <div class="card">
     <h2>Offene Vorschläge{% if platform != "all" %} <span class="small muted">({{ "Google" if platform == "google" else "Microsoft" }})</span>{% endif %}</h2>
